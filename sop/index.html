@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOP Builder</title>
+<link rel="stylesheet" href="ui/style.css">
+</head>
+<body>
+<div id="topbar"></div>
+<div id="error-banner" hidden></div>
+<div id="main"></div>
+<!-- Classic scripts only: module scripts and fetch are blocked on file:// (contract.md part 2). -->
+<script src="config.js"></script>
+<script src="site.js"></script>
+<script src="schema/sets.js"></script>
+<script src="schema/types.js"></script>
+<script src="schema/types_floor.js"></script>
+<script src="store/store.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="engine/select.js"></script>
+<script src="engine/text.js"></script>
+<script src="engine/links.js"></script>
+<script src="engine/release.js"></script>
+<script src="engine/edit.js"></script>
+<script src="engine/keys.js"></script>
+<script src="engine/number.js"></script>
+<script src="engine/club.js"></script>
+<script src="engine/compare.js"></script>
+<script src="engine/floor.js"></script>
+<script src="engine/notes.js"></script>
+<script src="engine/flow_facts.js"></script>
+<script src="engine/flow.js"></script>
+<script src="engine/sections.js"></script>
+<script src="engine/kickstart.js"></script>
+<script src="engine/menus.js"></script>
+<script src="engine/stale.js"></script>
+<script src="engine/process.js"></script>
+<script src="engine/lists.js"></script>
+<script src="engine/photos.js"></script>
+<script src="engine/rights.js"></script>
+<script src="engine/online.js"></script>
+<script src="engine/copies.js"></script>
+<script src="engine/pictures.js"></script>
+<script src="engine/sync.js"></script>
+<script src="engine/main.js"></script>
+<script src="engine/main_flow.js"></script>
+<script src="engine/main_sync.js"></script>
+<script src="store/online.js"></script>
+<script src="ui/errors.js"></script>
+<script src="ui/render.js"></script>
+<script src="ui/render_icons.js"></script>
+<script src="ui/render_section.js"></script>
+<script src="ui/render_tabs.js"></script>
+<script src="ui/render_edit.js"></script>
+<script src="ui/render_floor.js"></script>
+<script src="ui/render_flow.js"></script>
+<script src="ui/render_flow_forms.js"></script>
+<script src="ui/render_kick.js"></script>
+<script src="ui/render_pop.js"></script>
+<script src="ui/render_proc.js"></script>
+<script src="ui/render_lists.js"></script>
+<script src="ui/render_sync.js"></script>
+<script src="ui/app.js"></script>
+<script src="ui/app_reason.js"></script>
+<script src="ui/app_photos.js"></script>
+<script src="ui/app_pictures.js"></script>
+<script src="ui/app_texts.js"></script>
+<script src="ui/app_actions.js"></script>
+<script src="ui/app_final.js"></script>
+<script src="ui/app_flow.js"></script>
+<script src="ui/app_cols.js"></script>
+<script src="ui/app_steps.js"></script>
+<script src="ui/app_proc.js"></script>
+<script src="ui/app_lists.js"></script>
+<script src="ui/app_notes.js"></script>
+<script src="ui/app_mouse.js"></script>
+<script src="ui/app_field.js"></script>
+<script src="ui/app_kick.js"></script>
+<script src="ui/app_copies.js"></script>
+<script src="ui/app_renumber.js"></script>
+<script src="ui/app_sync.js"></script>
+<script src="ui/app_online.js"></script>
+<script>
+  window.addEventListener('DOMContentLoaded', function () {
+    APP.start().catch(function (e) { ERRORS.show('start', e); });
+  });
+</script>
+</body>
+</html>

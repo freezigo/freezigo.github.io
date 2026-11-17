@@ -1,0 +1,645 @@
+{
+  "contract": "1.2",
+  "note": "Master build columns to contract fields. Read by tools/import_build.py (Python) and by the Builder's export (JS). Conversions: 'yn' = Y/N to true/false; 'num' = number, text such as [VALUE NEEDED: Divyal] becomes null and is listed in the import report; 'int' = whole number; 'text' = text, empty becomes null unless required; 'date' = YYYY-MM-DD, other text becomes null and is listed; 'list_pipe' = split on ' | '; 'rev' = revision label as written.",
+  "sources": {
+    "steps": {
+      "from": "Steps_DB_build{N}.csv (SOP\\Builds)",
+      "columns": {
+        "Key": [
+          "key",
+          "text"
+        ],
+        "SOP ID": [
+          "sop_id",
+          "text"
+        ],
+        "Rev": [
+          "rev",
+          "rev"
+        ],
+        "Step no": [
+          "step_no",
+          "text"
+        ],
+        "Seq": [
+          "seq",
+          "int"
+        ],
+        "Section": [
+          "section",
+          "int"
+        ],
+        "Step type": [
+          "step_type",
+          "text"
+        ],
+        "Action": [
+          "action",
+          "text"
+        ],
+        "Why": [
+          "why",
+          "text"
+        ],
+        "Warning": [
+          "warning",
+          "text"
+        ],
+        "Tool": [
+          "tool",
+          "text"
+        ],
+        "Gauge ID": [
+          "gauge_id",
+          "text"
+        ],
+        "Material": [
+          "material",
+          "text"
+        ],
+        "Min": [
+          "min",
+          "num"
+        ],
+        "Max": [
+          "max",
+          "num"
+        ],
+        "Unit": [
+          "unit",
+          "text"
+        ],
+        "Limit status": [
+          "limit_status",
+          "text"
+        ],
+        "Check": [
+          "check",
+          "text"
+        ],
+        "If fail": [
+          "if_fail",
+          "text"
+        ],
+        "Skip if": [
+          "skip_if",
+          "text"
+        ],
+        "Hold": [
+          "hold",
+          "text"
+        ],
+        "Signed by": [
+          "signed_by",
+          "text"
+        ],
+        "Class": [
+          "class",
+          "text"
+        ],
+        "Repeat count": [
+          "repeat_count",
+          "int"
+        ],
+        "Photo ref": [
+          "photo_ref",
+          "list_pipe"
+        ],
+        "Photo required": [
+          "photo_required",
+          "yn"
+        ],
+        "Est min": [
+          "est_min",
+          "num"
+        ],
+        "Remark": [
+          "remark",
+          "text"
+        ]
+      },
+      "added": {
+        "action_gu": null
+      }
+    },
+    "sections": {
+      "from": "Sections_build{N}.csv (SOP\\Builds)",
+      "columns": {
+        "SOP ID": [
+          "sop_id",
+          "text"
+        ],
+        "Section": [
+          "section",
+          "int"
+        ],
+        "Name": [
+          "name",
+          "text"
+        ],
+        "Needs": [
+          "needs_note",
+          "text"
+        ],
+        "Ends with": [
+          "ends_with",
+          "text"
+        ],
+        "Max wait": [
+          "max_wait",
+          "text"
+        ],
+        "Restart step": [
+          "restart_step",
+          "text"
+        ],
+        "Manpower": [
+          "manpower",
+          "text"
+        ],
+        "Est min": [
+          "est_min",
+          "num"
+        ]
+      },
+      "added": {
+        "rev": "from sops.current_rev of the SOP ID",
+        "name_gu": null,
+        "needs_sections": null,
+        "needs_sops": null,
+        "needs_setup": null,
+        "wait_after": null,
+        "wait_min": null,
+        "any_time_steps": null,
+        "manpower_people": null,
+        "source_ref": null
+      },
+      "build15": {
+        "Needs sections": [
+          "needs_sections",
+          "list_int"
+        ],
+        "Needs SOPs": [
+          "needs_sops",
+          "list_text"
+        ],
+        "Needs set-up": [
+          "needs_setup",
+          "yn"
+        ],
+        "Wait after": [
+          "wait_after",
+          "int"
+        ],
+        "Wait min": [
+          "wait_min",
+          "num"
+        ],
+        "Any time steps": [
+          "any_time_steps",
+          "list_text"
+        ],
+        "Manpower people": [
+          "manpower_people",
+          "int"
+        ],
+        "Needs note": [
+          "needs_note",
+          "text"
+        ]
+      },
+      "not_used": [
+        "First step",
+        "Last step"
+      ]
+    },
+    "defects": {
+      "from": "Defects_build{N}.csv (SOP\\Builds)",
+      "columns": {
+        "Code": [
+          "code",
+          "text"
+        ],
+        "Name": [
+          "name",
+          "text"
+        ],
+        "Section type": [
+          "section_type",
+          "text"
+        ],
+        "Found at": [
+          "found_at",
+          "text"
+        ],
+        "What it looks like": [
+          "looks_like",
+          "text"
+        ],
+        "Photo": [
+          "photo",
+          "text"
+        ]
+      }
+    },
+    "sops": {
+      "from": "BMC_SOP_Master_Rev0_build{N}.xlsx sheet SOP_Header, table tbl_SOP_Header",
+      "columns": {
+        "SOP ID": [
+          "sop_id",
+          "text"
+        ],
+        "Rev": [
+          "current_rev",
+          "rev"
+        ],
+        "Status": [
+          "status",
+          "text"
+        ],
+        "Level": [
+          "level",
+          "text"
+        ],
+        "Title": [
+          "title",
+          "text"
+        ],
+        "Product": [
+          "product",
+          "text"
+        ],
+        "Who does it": [
+          "who_does_it",
+          "text"
+        ],
+        "Input from": [
+          "input_from",
+          "text"
+        ],
+        "Output to": [
+          "output_to",
+          "text"
+        ],
+        "Output is serial tracked": [
+          "output_serial_tracked",
+          "yn"
+        ]
+      },
+      "added": {
+        "short": "NAME + NN of the SOP ID",
+        "edited_in": "SOP project"
+      },
+      "rules": {
+        "current_rev": "null when the Rev cell is empty or says Retired",
+        "level": "Site stays Site"
+      }
+    },
+    "sop_revisions": {
+      "from": "BMC_SOP_Master_Rev0_build{N}.xlsx, sheet SOP_Header for the sign-offs and the SOP's own sheet (rows with a label in column A) for the header text; one row per Built SOP",
+      "columns": {
+        "Est min total": [
+          "est_min_total",
+          "num"
+        ],
+        "Hold points": [
+          "hold_points",
+          "text"
+        ],
+        "Prepared by": [
+          "prepared_by",
+          "text"
+        ],
+        "Checked by": [
+          "checked_by",
+          "text"
+        ],
+        "Approved by": [
+          "approved_by",
+          "text"
+        ],
+        "Approved date": [
+          "approved_date",
+          "date"
+        ],
+        "Release check": [
+          "release_note",
+          "text"
+        ],
+        "Revision note": [
+          "revision_note",
+          "text"
+        ]
+      },
+      "sheet_rows": {
+        "Purpose": "purpose",
+        "Scope": "scope",
+        "Process flow": "process_flow",
+        "Reference drawings": "reference_drawings",
+        "How to use": "how_to_use",
+        "Section 4 rule": "setup_rule",
+        "Date": "rev_date"
+      },
+      "added": {
+        "status": "Draft",
+        "checked_date": null
+      },
+      "rules": {
+        "rev_date": "first YYYY-MM-DD found in the Date row text",
+        "checked_by": "as written; a date is never read out of it"
+      }
+    },
+    "values_needed": {
+      "from": "sheet Values Needed, table tbl_ValuesNeeded",
+      "columns": {
+        "No.": [
+          "no",
+          "int"
+        ],
+        "SOP ID": [
+          "sop_id",
+          "text"
+        ],
+        "Step": [
+          "step_text",
+          "text"
+        ],
+        "Value needed": [
+          "value_needed",
+          "text"
+        ],
+        "Unit": [
+          "unit",
+          "text"
+        ],
+        "Owner": [
+          "owner",
+          "text"
+        ],
+        "Blocks release": [
+          "blocks_release",
+          "yn"
+        ],
+        "Value": [
+          "value",
+          "text"
+        ],
+        "Date given": [
+          "date_given",
+          "date"
+        ],
+        "Sign": [
+          "sign",
+          "text"
+        ]
+      },
+      "added": {
+        "vn_id": "VN- + No. as 4 digits"
+      }
+    },
+    "glossary": {
+      "from": "sheet Glossary, table tbl_Glossary",
+      "columns": {
+        "No.": [
+          "no",
+          "int"
+        ],
+        "English term": [
+          "term",
+          "text"
+        ],
+        "Meaning (simple words)": [
+          "meaning",
+          "text"
+        ],
+        "BOM name (as per bill)": [
+          "bom_name",
+          "text"
+        ],
+        "Store label": [
+          "store_label",
+          "text"
+        ],
+        "Gujarati": [
+          "gujarati",
+          "text"
+        ],
+        "Hindi": [
+          "hindi",
+          "text"
+        ],
+        "Used in": [
+          "used_in",
+          "text"
+        ]
+      }
+    },
+    "gauges": {
+      "from": "sheet Gauges, table tbl_Gauges",
+      "columns": {
+        "Gauge ID": [
+          "gauge_id",
+          "text"
+        ],
+        "Name": [
+          "name",
+          "text"
+        ],
+        "Measures": [
+          "measures",
+          "text"
+        ],
+        "Range": [
+          "range",
+          "text"
+        ],
+        "Calibration": [
+          "calibration",
+          "text"
+        ],
+        "Cal due": [
+          "cal_due",
+          "text"
+        ]
+      }
+    },
+    "routing": {
+      "from": "sheet Routing, table tbl_Routing",
+      "columns": {
+        "No.": [
+          "no",
+          "int"
+        ],
+        "From (SOP or source)": [
+          "from_id",
+          "text"
+        ],
+        "To (SOP or destination)": [
+          "to_id",
+          "text"
+        ],
+        "Qty per one 'To' unit": [
+          "qty",
+          "int"
+        ],
+        "Serial consumed (Y/N)": [
+          "serial_consumed",
+          "yn"
+        ],
+        "Note": [
+          "note",
+          "text"
+        ]
+      }
+    },
+    "revision_history": {
+      "from": "sheet Revision_History, table tbl_Revision_History",
+      "columns": {
+        "SOP ID": [
+          "sop_id",
+          "text"
+        ],
+        "Rev": [
+          "rev",
+          "text"
+        ],
+        "Date": [
+          "date",
+          "date"
+        ],
+        "What changed": [
+          "what_changed",
+          "text"
+        ],
+        "Changed by": [
+          "changed_by",
+          "text"
+        ],
+        "Approved by": [
+          "approved_by",
+          "text"
+        ]
+      },
+      "added": {
+        "rh_id": "row order, 1 upwards"
+      }
+    },
+    "safety_items": {
+      "from": "the SOP's sheet, table tbl_<SHORT>_Safety (P-1)",
+      "columns": {
+        "No.": [
+          "no",
+          "int"
+        ],
+        "Status": [
+          "status",
+          "text"
+        ],
+        "Item": [
+          "item",
+          "text"
+        ],
+        "Who": [
+          "who",
+          "text"
+        ],
+        "Used at (steps)": [
+          "used_at",
+          "text"
+        ],
+        "Rev 02 tag": [
+          "tag",
+          "text"
+        ]
+      }
+    },
+    "materials": {
+      "from": "the SOP's sheet, table tbl_<SHORT>_Materials (M-1)",
+      "columns": {
+        "Sr": [
+          "sr",
+          "int"
+        ],
+        "Status": [
+          "status",
+          "text"
+        ],
+        "Material": [
+          "material",
+          "text"
+        ],
+        "Qty": [
+          "qty",
+          "text"
+        ],
+        "Note": [
+          "note",
+          "text"
+        ],
+        "Used at (steps)": [
+          "used_at",
+          "text"
+        ]
+      }
+    },
+    "tools": {
+      "from": "the SOP's sheet, table tbl_<SHORT>_Tools (T-1)",
+      "columns": {
+        "No.": [
+          "no",
+          "int"
+        ],
+        "Type": [
+          "type",
+          "text"
+        ],
+        "Tool or machine": [
+          "name",
+          "text"
+        ],
+        "Used at (steps)": [
+          "used_at",
+          "text"
+        ]
+      }
+    },
+    "worked_examples": {
+      "from": "the SOP's sheet, table tbl_<SHORT>_Examples",
+      "columns": {
+        "No.": [
+          "we_id",
+          "text"
+        ],
+        "Step": [
+          "step_text",
+          "text"
+        ],
+        "What to measure": [
+          "what",
+          "text"
+        ],
+        "How to measure": [
+          "how",
+          "text"
+        ],
+        "How to decide pass or fail": [
+          "decide",
+          "text"
+        ],
+        "Example with sample numbers": [
+          "example",
+          "text"
+        ]
+      }
+    },
+    "ref_tables": {
+      "from": "the SOP's sheet: every other named table (tbl_<SHORT>_Joints, _Nitrile) and the Drawings sheet table; table_id from the title text (W-1, N-1, D); cells as values (formulas already worked out)"
+    },
+    "pictures": {
+      "from": "images on the SOP's sheet below the row 'Pictures from ...'; picture_id and caption from the text in column A of the image's anchor row; file written to source\\Pictures\\<SHORT>-<Rev>-Picture-<n>.png"
+    },
+    "retired_keys": {
+      "from": "BMC_SOP_KeyMap_build13_to_build14.xlsx, sheet Key_Map rows with Change = Retired; and 'Retired keys:' phrases in Revision_History text (ranges 'TANK01-0410 to 0470' and lists 'TANK01-0200, 0900')"
+    }
+  }
+}
