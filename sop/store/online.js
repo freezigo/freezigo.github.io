@@ -31,14 +31,15 @@ const ONLINE = (function () {
   function onSignedOut(fn) {
     get().auth.onAuthStateChange(function (event, sess) { if (event === 'SIGNED_OUT' || !sess) { fn(); } });
   }
-  /* me(sess) → { name, roles, email }: the SOP name and roles (sop_people), else the ERP name with no SOP role */
+  /* me(sess) → { name, roles, email, sop }: the SOP name and roles (sop_people); sop = false for an ERP login that is not one of the
+     SOP people: it reads no SOP (Samrat 2026-11-17 "2. b", build 53), and the page says so with the ERP name */
   async function me(sess) {
     const uid = sess.user.id, email = sess.user.email || '';
     const p = await get().from('sop_people').select('name, roles, active').eq('user_id', uid).maybeSingle();
     if (p.error) { fail('me', 'sop_people: ' + p.error.message); }
-    if (p.data && p.data.active) { return { name: p.data.name, roles: p.data.roles || [], email: email }; }
+    if (p.data && p.data.active) { return { name: p.data.name, roles: p.data.roles || [], email: email, sop: true }; }
     const q = await get().from('profiles').select('name').eq('id', uid).maybeSingle();
-    return { name: (q && q.data && q.data.name) || email, roles: [], email: email };
+    return { name: (q && q.data && q.data.name) || email, roles: [], email: email, sop: false };
   }
 
   /* every row of a table, 1,000 at a time (the most one answer gives) */
@@ -116,9 +117,12 @@ const ONLINE = (function () {
     const r = await get().rpc('sop_import', { data: data });
     if (r.error) { fail('putOnline', r.error.message); }
     const tableLines = ENGINE_ONLINE.hashDiff(local, r.data).map(x => x.line);
-    const listing = {};
-    for (const d of ENGINE_ONLINE.fileDirs()) { listing[d] = await source.listFiles(d); }
-    const jobs = ENGINE_ONLINE.fileJobs(listing);
+    const listing = {}, sizes = {};
+    for (const d of ENGINE_ONLINE.fileDirs()) {
+      listing[d] = await source.listFiles(d);
+      for (const f of listing[d]) { sizes[f] = (await source.fileBlob(f)).size; }   /* a file's size, not its bytes yet */
+    }
+    const jobs = ENGINE_ONLINE.fileJobs(listing, sizes);
     const fileLines = [], blobs = {};
     let n = 0;
     for (const f of jobs.files) {

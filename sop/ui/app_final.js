@@ -48,6 +48,7 @@ const APP_FINAL = (function () {
     const slot = body.querySelector('#final-slot');
     const f = onFloor(state.view);
     if (!slot || !f) { return; }
+    if (state.viewOnly) { return; }   /* build 54: online, no Final PDF line: the final PDFs stay on Samrat's PC (Vishal 2026-11-17) */
     slot.innerHTML = RENDER_TABS.finalCard(Object.assign({ saved: await saved(f.name) }, f));
     $('btn-final-save').onclick = function () {
       const w = window.open('', '_blank');   /* at the click, so the browser lets the tab open */

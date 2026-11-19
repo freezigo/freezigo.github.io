@@ -354,8 +354,9 @@ const APP = (function () {
     if (!sess) { state.me = null; drawTopBar(); main().innerHTML = RENDER.loginFirst(CONFIG); return; }
     await guard('ui online load', async function () {
       state.me = await ONLINE.me(sess);
-      console.log('[online → ui] ' + state.me.name + ' (' + (state.me.roles.join(', ') || 'reads') + ')');
+      console.log('[online → ui] ' + state.me.name + ' (' + (state.me.sop ? state.me.roles.join(', ') : 'not one of the SOP people') + ')');
       state.editor = state.me.name;
+      if (!state.me.sop) { drawTopBar(); main().innerHTML = RENDER.noAccess(); return; }   /* build 53: only the SOP people read (Samrat "2. b") */
       STORE.useOnline(await ONLINE.loadAll());
       state.tables = await STORE.readAll();
       state.files = await STORE.listFiles(CONFIG.photos_dir);

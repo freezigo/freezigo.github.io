@@ -13,7 +13,7 @@ const APP_ONLINE = (function () {
     div.className = 'card online-card';
     div.id = 'online-card';
     div.innerHTML = '<b>Put this PC\'s data online</b>' +
-      '<p class="muted">Admin only. Pick the SOP App folder (D:\\Claude\\Projects\\SOP App). Every table, photo, picture and final PDF goes online, ' +
+      '<p class="muted">Admin only. Pick the SOP App folder (D:\\Claude\\Projects\\SOP App). Every table, photo and picture goes online, ' +
       'then each one is checked against this PC. The PC copy does not change.</p>' +
       '<button id="btn-put-online">Pick the folder and put it online</button><div id="online-out" class="online-out"></div>';
     root.insertBefore(div, root.firstChild);

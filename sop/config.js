@@ -2,7 +2,7 @@
    written into code elsewhere. Classic script (global CONFIG). */
 const CONFIG = {
   app_name: 'SOP Builder',
-  builder_build: 52,           // raise by one on every delivery
+  builder_build: 54,           // raise by one on every delivery
   floor_build: 0,              // Floor App, from S3
   contract: '1.6',
   contract_reads: ['1.3', '1.4', '1.5', '1.6'], // an older file reads as 1.6 (the new fields empty) until tools/migrate_1_6.py adds them; every write says 1.6
@@ -17,6 +17,7 @@ const CONFIG = {
     url: 'https://prsdbdxxxllepcdfbtcb.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc2RiZHh4eGxsZXBjZGZidGNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5OTIwNDUsImV4cCI6MjEwNzU2ODA0NX0.iG9Z0gZRFqInlOhZ96eu9JP0GZ9B-iQCNk1CCvqo_cI',
     bucket: 'sop-files',
+    max_file_bytes: 20971520,   /* 20 MB a file (the store's file_size_limit); a bigger file stays on the PC (Samrat 2026-11-17 "1. b") */
     site: false,
     erp_url: '../'
   },

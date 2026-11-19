@@ -59,6 +59,11 @@ const RENDER = (function () {
       '<p><a href="' + esc((cfg.online && cfg.online.erp_url) || '../') + '">Open the Freezigo app</a></p></div>';
   }
 
+  /* noAccess(): an ERP login that is not one of the SOP people (build 53; Samrat 2026-11-17 "2. b") */
+  function noAccess() {
+    return '<div class="card"><b>This login cannot read the SOPs.</b><p>Only the SOP people (Samrat, Raj, Divyal) read them. Ask Samrat.</p></div>';
+  }
+
   /* sopList(view, builtOnly, statusOrder): view = ENGINE.sopList(...); statusOrder = SETS.sop_status */
   function sopList(view, builtOnly, statusOrder) {
     const meta = view.meta;
@@ -227,5 +232,5 @@ const RENDER = (function () {
     return h + '</p><div id="section-view"><p class="muted">Click a section.</p></div>';
   }
 
-  return { esc, show, lines, list, yn, kvTable, grid, topBar, topBarOnline, loginFirst, sopList, sopPage, tabsLine, tabLabel, headerTab, sectionsTab, TABS };
+  return { esc, show, lines, list, yn, kvTable, grid, topBar, topBarOnline, loginFirst, noAccess, sopList, sopPage, tabsLine, tabLabel, headerTab, sectionsTab, TABS };
 })();

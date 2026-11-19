@@ -70,13 +70,14 @@ const ENGINE_ONLINE = (function () {
     });
   }
   /* importSql(name, rows) → the rows go, then come back from their JSON (jsonb_populate_recordset reads each field into its column); the
-     quote mark $sop$ changes when the text holds it */
+     quote mark $sop$ changes when the text holds it. Every DELETE has a WHERE ("where true"): Supabase's API login loads safeupdate,
+     which refuses a DELETE or UPDATE without one (ERP chat, 2026-11-17, build 53) */
   function importSql(name, rows) {
     const table = 'public.' + dbTable(name);
     const json = JSON.stringify(rows);
     let tag = '$sop$', i = 0;
     while (json.indexOf(tag) >= 0) { i++; tag = '$sop' + i + '$'; }
-    return 'delete from ' + table + ';\ninsert into ' + table + ' select * from jsonb_populate_recordset(null::' + table + ', ' + tag + json + tag + '::jsonb);';
+    return 'delete from ' + table + ' where true;\ninsert into ' + table + ' select * from jsonb_populate_recordset(null::' + table + ', ' + tag + json + tag + '::jsonb);';
   }
 
   /* the bytes of a text in UTF-8, as Postgres keeps it */
@@ -180,14 +181,18 @@ const ENGINE_ONLINE = (function () {
     }
     return out;
   }
-  /* the folders whose files go online: photos, pictures, the final PDFs and the older ones (engine/floor.js names Final SOPs) */
-  const FINAL_DIRS = ['Final SOPs', 'Final SOPs/Old'];
-  function fileDirs() { return [CFG().photos_dir, CFG().pictures_dir].concat(FINAL_DIRS); }
+  /* the folders whose files go online: the photos and the pictures. The final PDFs (Final SOPs, Final SOPs/Old) stay on the PC: not
+     needed online (Vishal 2026-11-17, build 54); they are neither sent nor checked nor named in the result */
+  function fileDirs() { return [CFG().photos_dir, CFG().pictures_dir]; }
   const FILE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf' };
   /* the signs the file store (Supabase Storage) takes in a name: letters and digits of English, _ / ! - . * ' ( ) space & $ @ = ; : + , ? */
   const NAME_OK = /^(\w|\/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$/;
-  /* fileJobs(listing) → { files: [{ path, type }], skipped: [{ path, why }] }, both sorted by path; listing = { folder: [paths] } */
-  function fileJobs(listing) {
+  /* the most one file may weigh in the file store (config online.max_file_bytes: 20 MB, as the store's file_size_limit) */
+  const MAX_FILE = () => (CFG().online && CFG().online.max_file_bytes) || 20971520;
+  const MB = 1048576;   /* MB as Windows shows it */
+  /* fileJobs(listing, sizes) → { files: [{ path, type }], skipped: [{ path, why }] }, both sorted by path; listing = { folder: [paths] };
+     sizes = { path: bytes } (build 53, Samrat 2026-11-17 "1. b"): a file over the most the file store takes stays on the PC */
+  function fileJobs(listing, sizes) {
     const files = [], skipped = [];
     for (const dir of Object.keys(listing || {})) {
       for (const p of listing[dir] || []) {
@@ -195,6 +200,10 @@ const ENGINE_ONLINE = (function () {
         const type = m ? FILE_TYPES[m[1].toLowerCase()] : undefined;
         if (!type) { skipped.push({ path: p, why: 'not a photo, picture or PDF' }); continue; }
         if (!NAME_OK.test(p)) { skipped.push({ path: p, why: 'a sign in the name the file store does not take: rename the file' }); continue; }
+        if (sizes && typeof sizes[p] === 'number' && sizes[p] > MAX_FILE()) {
+          skipped.push({ path: p, why: 'over ' + Math.round(MAX_FILE() / MB) + ' MB (' + (sizes[p] / MB).toFixed(1) + ' MB), the most the file store takes: stays on this PC' });
+          continue;
+        }
         files.push({ path: p, type: type });
       }
     }
@@ -202,7 +211,7 @@ const ENGINE_ONLINE = (function () {
     return { files: files.sort(byPath), skipped: skipped.sort(byPath) };
   }
   /* viewRights() → the rights on the view-only page: nothing changes; every view is locked with this line (app.js rightsOf) */
-  const VIEW_LINE = 'View only: changes are made in the SOP Builder on Samrat\'s PC (online editing comes in build 53).';
+  const VIEW_LINE = 'View only: changes are made in the SOP Builder on Samrat\'s PC. Editing online comes later.';
   function viewRights() { return { kind: 'view', owner: null, can_change: false, read_only: true, lock_text: VIEW_LINE, tag: 'View only' }; }
   return { dbTable, dbKey, sqlType, columnsOf, tableSql, importRows, importSql, dbRowText, dbHashSql, fromOnline, inOrder, payload, hashDiff,
     fileDirs, fileJobs, viewRights, PREFIX, VIEW_LINE };
