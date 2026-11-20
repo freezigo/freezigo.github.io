@@ -444,3 +444,11 @@ table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: i
 .release-pop .release-last { font-weight: bold; margin-top: 4px; }
 #btn-relask-ok { background: #5a2a22; border-color: var(--red); }
 #btn-relask-ok:hover { background: #7a362b; }
+/* build 60: the draft file on the New SOP card (spec/example_draft_file.md part 6) */
+.kick .draft-line { font-weight: bold; }
+.kick .draft-target { margin-top: 3px; }
+.kick .draft-list { margin: 4px 0 2px; padding-left: 20px; line-height: 1.45; font-size: 13px; }
+.kick .draft-refusals li { color: var(--red); }
+.kick .draft-warn { margin-top: 4px; }
+.kick .draft-warn summary { cursor: pointer; color: var(--amber); }
+.draft-save { margin-top: 14px; }

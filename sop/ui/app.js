@@ -151,6 +151,19 @@ const APP = (function () {
     APP_SYNC.wireTags(main());
   }
 
+  /* saveDraftFile(): build 60 (spec/example_draft_file.md part 8): the open SOP (a copy: under its good version's ID) as a draft file in
+     the Downloads folder */
+  function saveDraftFile() {
+    const d = ENGINE_DRAFT.exportDraft(state.tables, state.sop_id, { on: nowIso().slice(0, 10), by: state.editor + ' (SOP Builder build ' + CONFIG.builder_build + ')' });
+    const name = d.sop.sop_id + ' draft.json';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2) + '\n'], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    console.log('[ui] saved ' + name + ': ' + d.sections.length + ' sections, ' + d.steps.length + ' steps');
+    if ($('draft-saved')) { $('draft-saved').innerHTML = '<div class="given-note">Saved ' + RENDER.esc(name) + ': ' + d.sections.length + ' sections, ' + d.steps.length + ' steps, ' + d.values_needed.length + ' open Values Needed rows.</div>'; }
+  }
   async function showSop(sopId, tab) {
     needData('showSop');
     console.log('[ui → engine] sopView ' + sopId);
@@ -242,10 +255,13 @@ const APP = (function () {
         body.innerHTML = T.floorTab(view);
         if ($('btn-floor')) { $('btn-floor').onclick = function () { guard('ui floorCopy', function () { return APP_ACTIONS.openFloorCopy(null); }); }; }
         if ($('btn-floor-on')) { $('btn-floor-on').onclick = function () { guard('ui floorCopy', function () { return APP_ACTIONS.openFloorCopy($('btn-floor-on').dataset.rev); }); }; }
+        if ($('btn-draft-save')) { $('btn-draft-save').onclick = function () { guard('ui exportDraft', saveDraftFile); }; }
         await APP_FINAL.wire(body);   /* build 50: the Final PDF line and its button */
         break;
       case 'compare':
         body.innerHTML = T.compareTab(APP_ACTIONS.compareNow(state.compareAgainst));
+        /* build 60: a draft file brought in as a copy opens here, with its report on top */
+        if (state.kickReport) { body.insertAdjacentHTML('afterbegin', '<div class="given-note kick-report">' + RENDER.esc(state.kickReport) + '</div>'); state.kickReport = null; }
         if ($('cmp-against')) { $('cmp-against').onchange = function (e) { state.compareAgainst = e.target.value; guard('ui compareTab', function () { return showTab('compare'); }); }; }
         break;
       case 'flow': await APP_FLOW.showFlow(); break;

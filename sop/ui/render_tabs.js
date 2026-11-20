@@ -273,14 +273,20 @@ const RENDER_TABS = (function () {
     if (view.copy) {
       return '<h2>Floor PDF <span class="muted">' + esc(view.sop.sop_id) + ' ' + cur + '</span></h2>' +
         '<p class="copy-line">A copy never goes to the floor. Its floor copy prints for review, with the band "for review only, never for the floor" on top.</p>' +
-        '<p><button id="btn-floor">Open the copy for review</button> <span class="muted">opens in a new tab; there, Print / Save as PDF.</span></p><div class="refusal" data-for="floor"></div>';
+        '<p><button id="btn-floor">Open the copy for review</button> <span class="muted">opens in a new tab; there, Print / Save as PDF.</span></p>' + draftSave(view) + '<div class="refusal" data-for="floor"></div>';
     }
     return '<h2>Floor PDF <span class="muted">' + esc(view.sop.sop_id) + ' ' + cur + '</span></h2>' +
       '<p>The floor copy is made from the data each time: page 1 header and revision history, 1 Safety and PPE, 2 Materials, tools and machines, then every process section with the English line and the Gujarati line under it, warnings in boxes, HOLD marks and tick boxes; the record sheet last.</p>' +
       (fr ? '<p><button id="btn-floor-on" data-rev="' + esc(fr.rev) + '">Open the floor copy of ' + esc(fr.rev) + ' (on the floor)</button> <span class="muted">' + esc(fr.label) + '</span></p>' : '') +
       '<p><button id="btn-floor">' + (fr ? 'Open the draft ' + cur + ' (for review, not for the floor)' : 'Open the floor copy') + '</button> <span class="muted">opens in a new tab; there, Print / Save as PDF. Pictures and OK photos are included when the SOP App folder is open.</span></p>' +
       (view.rev.status === 'Released' ? '' : '<p class="notok">' + cur + ' is ' + esc(view.rev.status) + ', not Released: this copy is for review, not for the floor.</p>') +
-      '<div class="refusal" data-for="floor"></div><div id="final-slot"></div>';
+      draftSave(view) + '<div class="refusal" data-for="floor"></div><div id="final-slot"></div>';
+  }
+  /* draftSave(view): build 60 (spec/example_draft_file.md part 8): the SOP's data as a draft file, the same format a chat makes */
+  function draftSave(view) {
+    const id = view.copy ? view.copy.of : view.sop.sop_id;
+    return '<p class="draft-save"><button id="btn-draft-save">Save as a draft file</button> <span class="muted">' + esc(view.sop.sop_id) + ' ' + esc(view.sop.current_rev) + ' as ' + esc(id) +
+      ' draft.json in your Downloads folder: the same format a chat makes with the draft prompt. New SOP, Start from: A draft file brings it back as your own copy.</span></p><div id="draft-saved"></div>';
   }
   /* finalCard(f): build 50 (example_rights.md part 9.4): the Final PDF line of the revision on the floor; f = { name, rev, saved } */
   function finalCard(f) {

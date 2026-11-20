@@ -7,13 +7,17 @@
    under source\chart with a manifest line, open the new SOP's Flow tab
    with the report. Build 50 (spec/example_rights.md part 8): a new SOP is
    written through a copy too: after the start, the starter's own copy
-   "First draft" is saved and its Flow tab opens. Classic script (global
-   APP_KICK). */
+   "First draft" is saved and its Flow tab opens. Build 60
+   (spec/example_draft_file.md part 6): from a draft file: read the file
+   the editor picks, show what the reader found, ask the Reason, hand the
+   engine the import, write the tables; a new SOP or an SOP on the list
+   opens its "First draft" on the Flow tab, a copy of an SOP that has a
+   revision opens on its Compare tab. Classic script (global APP_KICK). */
 const APP_KICK = (function () {
   const state = APP.state;
   const $ = APP.el, main = APP.main, guard = APP.guard, nowIso = APP.nowIso, writeTables = APP.writeTables;
   const kick = () => (state.kick = state.kick || { type: 'main', proc: {}, start: 'blank', chart: null, text: null, file_name: null, groups: null, group: null, unticked: [], plan: null, sop_choice: 'list', sop_id: null,
-    new_sop: {}, reason: '', kept: null });
+    new_sop: {}, reason: '', kept: null, draft: null, draft_name: null, read: null, copy_name: '' });
 
   function listed() { return state.sopListRows.filter(r => !r.current_rev); }
   /* firstDraft(sopId) → the SOP to open after a start: the starter's copy "First draft" (build 50), or the SOP itself in the test seam
@@ -65,6 +69,7 @@ const APP_KICK = (function () {
       radio.onchange = e => guard('ui kickStart', () => { readNewSop(); k.start = e.target.value; replan(); draw(); });
     }
     if ($('btn-blank-make')) { $('btn-blank-make').onclick = () => guard('ui startBlank', makeBlank); }
+    if ($('kick-draft')) { wireDraft(k); return; }
     if (!$('kick-file')) { wireSop(k); return; }
     $('kick-file').onchange = e => {
       const f = e.target.files[0];
@@ -89,6 +94,50 @@ const APP_KICK = (function () {
       radio.onchange = e => guard('ui kickSopChoice', () => { readNewSop(); k.sop_choice = e.target.value; replan(); draw(); });
     }
     if ($('kick-sop-id')) { $('kick-sop-id').onchange = e => guard('ui kickSop', () => { k.sop_id = e.target.value || null; k.sop_choice = 'list'; replan(); draw(); }); }
+  }
+  /* ---- build 60: a draft file (spec/example_draft_file.md part 6) ---- */
+  function wireDraft(k) {
+    $('kick-draft').onchange = e => {
+      const f = e.target.files[0];
+      if (!f) { return; }
+      const r = new FileReader();
+      r.onload = () => guard('ui readDraft', () => readDraftFile(f.name, r.result));
+      r.onerror = () => { throw new Error('ui readDraft: ' + f.name + ' cannot be read'); };
+      r.readAsText(f);
+    };
+    if ($('kd-name')) { $('kd-name').oninput = e => { k.copy_name = e.target.value; }; }
+    if ($('btn-draft-make')) { $('btn-draft-make').onclick = () => guard('ui importDraft', bringDraft); }
+  }
+  /* readDraftFile(name, text): the reader's checks; nothing is written */
+  function readDraftFile(name, text) {
+    const k = kick();
+    let draft = null;
+    try { draft = JSON.parse(String(text).replace(/^\uFEFF/, '')); } catch (e) { draft = null; }
+    k.draft = draft; k.draft_name = name; k.copy_name = '';
+    k.read = draft === null ? { refusals: [{ field: 'file', message: 'Not a draft file: ' + name + ' is not a JSON file.' }] } : ENGINE_DRAFT.readDraft(draft, state.tables);
+    console.log('[engine → ui] readDraft ' + name + ': ' + (k.read.refusals ? k.read.refusals.length + ' refusals' : k.read.line + '; ' + k.read.warnings.length + ' warnings; ' + k.read.target.kind));
+    draw();
+  }
+  /* Bring it in: checked first, then the Reason pop-up; a new SOP or an SOP on the list: Rev 01, then the starter's First draft; an SOP
+     with a revision: the starter's own copy, on its Compare tab */
+  function bringDraft() {
+    const k = kick();
+    if (!k.draft || !k.read || k.read.refusals) { return null; }
+    const id = k.read.target.sop_id;
+    return APP_REASON.ask('Bring in the draft file of ' + id, async function (reason, dry) {
+      const ctx = { who: state.editor, now: nowIso(), next_hist_id: await STORE.nextId('history', 'hist_id'), next_rh_id: await STORE.nextId('revision_history', 'rh_id'),
+        next_vn_no: await STORE.nextId('values_needed', 'no'), next_note_id: await STORE.nextId('chart_notes', 'note_id'), reason: reason };
+      const r = ENGINE_DRAFT.importDraft({ tables: state.tables, draft: k.draft, ctx: ctx, copy_name: String(k.copy_name || '').trim() || null });
+      if (r.refusals) { return r.refusals; }
+      if (dry) { return null; }
+      console.log('[engine → ui] importDraft ' + r.kind + ' ' + r.sop_id + ': ' + r.new_history.length + ' History rows');
+      await writeTables(r.tables, ctx);
+      const openId = r.kind === 'copy' ? r.sop_id : await firstDraft(r.sop_id);
+      state.kickReport = r.report.join(' ') + (r.kind === 'copy' ? ' Your copy is open: the Compare tab shows every difference from ' + id + '.' : draftLine(r.sop_id, openId));
+      state.kick = null;
+      await APP.showSop(openId, r.kind === 'copy' ? 'compare' : 'flow');
+      return null;
+    }, refs => { console.log('[engine → ui] importDraft refused: ' + refs.map(x => x.message).join('; ')); RENDER_EDIT.showRefusals($('kick-card'), refs); });
   }
   function readChart(name, text) {
     const k = kick();

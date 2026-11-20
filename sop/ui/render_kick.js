@@ -2,8 +2,10 @@
    Start from Blank (example_new_sop.md part 4: the SOP ID choice and
    "Start the blank SOP") or from a Planner chart (example_flow.md part 9:
    the chart file, the groups, the plan table with ticks, the SOP ID choice
-   with the new-SOP fields, "Make the SOP"). The Reason comes from the
-   pop-up. HTML from data only. Classic script (global RENDER_KICK). */
+   with the new-SOP fields, "Make the SOP") or from a draft file (build 60,
+   example_draft_file.md part 6: the file, what the reader found, the copy
+   name, "Bring it in"). The Reason comes from the pop-up. HTML from data
+   only. Classic script (global RENDER_KICK). */
 const RENDER_KICK = (function () {
   const R = RENDER;
   const esc = R.esc;
@@ -31,19 +33,69 @@ const RENDER_KICK = (function () {
     }
     return h + '</div></div>';
   }
-  /* card(k, listed, levels): k = APP state.kick (k.type 'main' or 'process'; k.start 'blank', the start when the page opens, or
-     'chart'; k.proc = { code, name, product }); listed = SOP list rows with no revision; levels = SETS.level */
+  /* grouped(warnings): the same line on 3 or more steps as one line ("no Gujarati line: 85 steps, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 and 79 more") */
+  function grouped(warnings) {
+    const by = {}, order = [];
+    for (const w of warnings) {
+      const m = /^Step ([0-9.]+): (.+)$/.exec(w);
+      const k = m ? m[2] : w;
+      if (!by[k]) { by[k] = []; order.push(k); }
+      by[k].push(m ? m[1] : null);
+    }
+    const out = [];
+    for (const k of order) {
+      const nos = by[k];
+      if (nos.length < 3 || nos[0] === null) { for (const n of nos) { out.push(n === null ? k : 'Step ' + n + ': ' + k); } continue; }
+      out.push(k.replace(/\.$/, '') + ': ' + nos.length + ' steps, ' + nos.slice(0, 6).join(', ') + (nos.length > 6 ? ' and ' + (nos.length - 6) + ' more' : '') + '.');
+    }
+    return out;
+  }
+  /* draftPart(k): build 60 (spec/example_draft_file.md part 6): the draft file a chat made with the fixed prompt, what the reader found
+     in it (k.read: refusals, or the line, the target and the warnings), the copy name when it becomes a copy, Bring it in */
+  function draftPart(k) {
+    let h = '<div class="f"><label>1 Draft file</label><div class="v"><input type="file" id="kick-draft" accept=".json,application/json"> ' +
+      (k.draft_name ? '<span class="muted">' + esc(k.draft_name) + '</span>' : '') +
+      note('The .json file a chat made with the prompt file "Freezigo SOP draft prompt v1.md" (in any Claude account), or one saved on a Floor PDF tab. The PDF the same chat made is for reading', 'BMC-L1-ALUCOIL-01 draft.json') + ref('file') + '</div></div>';
+    const rd = k.read;
+    if (!rd) { return h; }
+    h += '<div class="f"><label>2 What it holds</label><div class="v">';
+    if (rd.refusals) {
+      h += '<div class="notok draft-no">Not brought in: ' + esc(rd.refusals.length) + (rd.refusals.length === 1 ? ' thing' : ' things') + ' to fix in the file (in the chat that made it):</div><ul class="draft-list draft-refusals">' +
+        rd.refusals.map(x => '<li>' + esc(x.message) + '</li>').join('') + '</ul></div></div>';
+      return h;
+    }
+    const m = rd.made || {};
+    const made = (m.made_on ? ' on ' + m.made_on : '') + (m.made_by ? ' by ' + m.made_by : '') + (m.prompt ? ' with ' + m.prompt : '') + (m.source ? ' from ' + m.source : '');
+    h += '<div class="draft-line">' + esc(rd.line) + '</div>' + (made ? '<div class="muted draft-made">Made' + esc(made) + '.</div>' : '') + '<div class="draft-target">' + esc(rd.target.line) + '</div>';
+    h += rd.warnings.length ? '<details class="draft-warn"><summary>' + esc(rd.warnings.length) + (rd.warnings.length === 1 ? ' thing' : ' things') + ' to check later (it comes in; the tabs show them again)</summary><ul class="draft-list">' +
+      grouped(rd.warnings).map(w => '<li>' + esc(w) + '</li>').join('') + '</ul></details>' : '<div class="ok draft-warn">Nothing to check later.</div>';
+    h += '</div></div>';
+    if (rd.target.kind === 'copy') {
+      h += '<div class="f"><label for="kd-name">3 Copy name</label><div class="v"><input id="kd-name" size="30" maxlength="40" value="' + esc(k.copy_name || '') + '">' +
+        note('The name of your copy, 40 letters at most. Empty: Draft file and the day', 'SS tank from the Rev 02 PDF') + ref('name') + '</div></div>';
+    }
+    h += '<div class="f"><label></label><div class="v"><button id="btn-draft-make">Bring it in</button><div class="note">Bring it in asks the reason for the change.</div>' + ref('form') + '</div></div>';
+    return h;
+  }
+  /* card(k, listed, levels): k = APP state.kick (k.type 'main' or 'process'; k.start 'blank', the start when the page opens, 'chart'
+     or 'draft' (build 60); k.proc = { code, name, product }); listed = SOP list rows with no revision; levels = SETS.level */
   function card(k, listed, levels) {
     const proc = k.type === 'process';
-    const blank = proc || k.start !== 'chart';
+    const draft = k.start === 'draft';
+    const blank = !draft && (proc || k.start !== 'chart');
     let h = '<div class="card kick" id="kick-card"><h2>New SOP</h2>';
     /* the two SOP types (contract 1.4, example_process_sop.md part 4) */
     h += '<div class="f"><label>Type</label><div class="v"><label class="radio"><input type="radio" name="kick-type" value="main"' + (proc ? '' : ' checked') + '> Main SOP</label> ' +
       '<label class="radio"><input type="radio" name="kick-type" value="process"' + (proc ? ' checked' : '') + '> Process SOP</label>' +
       note('Main SOP: makes a main part with its own serial number. Process SOP: one process (brazing, a pressure test) used inside main SOPs; it can also run on its own', 'Main SOP') + '</div></div>';
+    const start = (value, words, on) => '<label class="radio"><input type="radio" name="kick-start" value="' + value + '"' + (on ? ' checked' : '') + '> ' + words + '</label> ';
+    if (proc) {
+      h += '<div class="f"><label>Start from</label><div class="v">' + start('blank', 'Blank', !draft) + start('draft', 'A draft file', draft) +
+        note('Blank: you add the sections and steps on the Flow tab. A draft file: the SOP a chat wrote with the draft prompt; the file says its own type and ID', 'Blank') + '</div></div>';
+      if (draft) { return h + draftPart(k) + '</div>'; }
+    }
     if (proc) {
       const pr = k.proc || {};
-      h += '<div class="f"><label>Start from</label><div class="v">Blank' + note('A Process SOP starts blank: you add its sections and steps on the Flow tab', 'Blank') + '</div></div>';
       h += '<div class="f"><label for="kp-code">Code</label><div class="v"><input id="kp-code" size="24" value="' + esc(pr.code || '') + '">' +
         note('Capitals, digits and dashes, 3 to 20 characters; used in the step keys (small letters are turned into capitals)', 'BRAZE-CU') + ref('new_sop_id') + '</div></div>';
       h += '<div class="f"><label for="kp-name">Name</label><div class="v"><input id="kp-name" size="40" value="' + esc(pr.name || '') + '">' + note('What the process is, in plain words', 'Copper brazing') + ref('title') + '</div></div>';
@@ -51,9 +103,9 @@ const RENDER_KICK = (function () {
       h += '<div class="f"><label></label><div class="v"><button id="btn-blank-make">Start the blank SOP</button><div class="note">Start asks the reason for the change.</div>' + ref('sop_id') + ref('form') + '</div></div>';
       return h + '</div>';
     }
-    h += '<div class="f"><label>Start from</label><div class="v"><label class="radio"><input type="radio" name="kick-start" value="blank"' + (blank ? ' checked' : '') + '> Blank</label> ' +
-      '<label class="radio"><input type="radio" name="kick-start" value="chart"' + (blank ? '' : ' checked') + '> A Planner chart</label>' +
-      note('Blank: Rev 01 with no sections and no steps; you add them on the Flow tab. A Planner chart: the sections come from a group of its boxes', 'Blank') + '</div></div>';
+    h += '<div class="f"><label>Start from</label><div class="v">' + start('blank', 'Blank', blank) + start('chart', 'A Planner chart', !blank && !draft) + start('draft', 'A draft file', draft) +
+      note('Blank: Rev 01 with no sections and no steps; you add them on the Flow tab. A Planner chart: the sections come from a group of its boxes. A draft file: the SOP a chat wrote with the draft prompt, sections and steps', 'Blank') + '</div></div>';
+    if (draft) { return h + draftPart(k) + '</div>'; }
     if (blank) {
       h += sopIdPart(k, listed, levels, 'SOP ID');
       h += '<div class="f"><label></label><div class="v"><button id="btn-blank-make">Start the blank SOP</button><div class="note">Start asks the reason for the change.</div>' + ref('form') + '</div></div>';

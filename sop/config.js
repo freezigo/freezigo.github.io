@@ -2,7 +2,7 @@
    written into code elsewhere. Classic script (global CONFIG). */
 const CONFIG = {
   app_name: 'SOP Builder',
-  builder_build: 59,           // raise by one on every delivery
+  builder_build: 60,           // raise by one on every delivery
   floor_build: 0,              // Floor App, from S3
   contract: '1.6',
   contract_reads: ['1.3', '1.4', '1.5', '1.6'], // an older file reads as 1.6 (the new fields empty) until tools/migrate_1_6.py adds them; every write says 1.6
