@@ -133,5 +133,14 @@ const RENDER_POP = (function () {
     return h + '<div class="note">Only shows; nothing is saved. Step numbers and order are not compared.</div><div class="pop-btns"><button id="btn-stepcmp-close">Close</button></div></div></div>';
   }
 
-  return { reasonPop, askPop, renumberPop, fixesPop, thumbs, viewer, picturePop, markTitles, marks, stepComparePop };
+  /* releasePop(ask): build 59 (example_edit_online.md part 11.4), ask = ENGINE_RELEASE.releaseAsk(...): the warning line, what the release
+     does, Go ahead or Cancel; Cancel has the focus, so Enter alone releases nothing */
+  function releasePop(ask) {
+    return '<div class="pop-back" id="pop-back"><div class="pop release-pop" id="release-pop" role="dialog" aria-modal="true" aria-labelledby="release-pop-line">' +
+      '<div class="pop-title">' + esc(ask.title) + '</div><div class="pop-what release-catch" id="release-pop-line">⚠ ' + esc(ask.line) + '</div>' +
+      '<ul class="release-lines" id="release-pop-lines">' + ask.lines.map((l, i) => '<li' + (i === ask.lines.length - 1 ? ' class="release-last"' : '') + '>' + esc(l) + '</li>').join('') + '</ul>' +
+      '<div class="pop-btns"><button id="btn-relask-ok">' + esc(ask.ok) + '</button> <button id="btn-relask-cancel">' + esc(ask.cancel) + '</button></div></div></div>';
+  }
+
+  return { reasonPop, askPop, renumberPop, fixesPop, thumbs, viewer, picturePop, markTitles, marks, stepComparePop, releasePop };
 })();

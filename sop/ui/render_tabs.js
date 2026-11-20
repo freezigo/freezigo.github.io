@@ -122,9 +122,11 @@ const RENDER_TABS = (function () {
     let h = '<h2>Release check <span class="muted">' + esc(view.sop.sop_id) + ' ' + esc(view.sop.current_rev) + '</span></h2>' +
       '<p class="' + (ch.released || locked ? 'ok' : 'notok') + '" id="release-result"><b>Result: ' + esc(view.release.result) + '</b> · ' + esc(view.release.label) + '</p>';
     const cols = [['No.', 'no'], ['Check', 'name'], ['Result', 'pass'], ['Detail', 'detail']];
-    if (!locked) { cols.push(['Accept for a floor trial', 'accept']); }
+    /* build 59: online, only a login that releases accepts items for a floor trial */
+    const canAccept = !locked && !(view.sign_state && !view.sign_state.release.can);
+    if (canAccept) { cols.push(['Accept for a floor trial', 'accept']); }
     h += grid(cols, ch.items, function (it, f) {
-      if (f === 'pass') { return it.pass ? '<span class="ok">PASS</span>' : '<span class="notok fail-click" data-no="' + esc(it.no) + '" title="Click to accept this item for a floor trial">FAIL</span>'; }
+      if (f === 'pass') { return it.pass ? '<span class="ok">PASS</span>' : (canAccept ? '<span class="notok fail-click" data-no="' + esc(it.no) + '" title="Click to accept this item for a floor trial">FAIL</span>' : '<span class="notok">FAIL</span>'); }
       if (f === 'detail') { return esc(it.detail) + (it.details.length ? '<br><span class="muted">' + esc(it.details.join(' · ')) + '</span>' : ''); }
       if (f === 'accept') {
         if (it.pass) { return '<span class="muted">—</span>'; }
@@ -134,26 +136,41 @@ const RENDER_TABS = (function () {
       }
       return esc(it[f]);
     });
-    if (!locked && ch.fail_count) {
+    if (canAccept && ch.fail_count) {
       h += '<div class="note">Clicking the word FAIL ticks the row\'s Accept box. Accepted items need a reason each. Ticks and reasons stay while this page is open. Example: Divyal gives the datum next week; trial with the Rev 02 value.</div>';
     }
     const today = view.today || '';
+    const sg = view.sign_state || null;   /* build 59: online, the login signs as itself (ENGINE_RELEASE.signState); null on the PC */
+    /* signed(by, date): the sign in place, online */
+    const signed = (by, date) => (date ? '<span class="muted sg-now">Now: ' + esc(by) + ', ' + esc(date) + '.</span> ' : '');
     if (!locked) {
       h += '<div class="card sign-box"><h3>Sign-offs <span class="muted">a sign is a name and a date</span></h3>' +
-        '<div class="f"><label>Prepared by</label><div class="v fixed">' + show(rv.prepared_by) + '</div></div>' +
-        '<div class="f"><label for="sg-check-name">Checked by</label><div class="v">' + names('sg-check-name', view.release.signers.checked, rv.checked_date ? rv.checked_by : '') + ' ' +
-        '<input id="sg-check-date" size="12" value="' + esc(rv.checked_date || today) + '"> <button id="btn-sign-checked">Sign as checked</button>' +
-        '<div class="note">' + esc(view.release.signers.checked.join(' or ')) + ', never the preparer' + (rv.prepared_by ? ' (' + esc(rv.prepared_by) + ')' : '') + '. Date YYYY-MM-DD. Example: ' +
-        esc(view.release.signers.checked[0] || 'Raj') + ', ' + esc(today) + '.</div><div class="refusal" data-for="checked"></div></div></div>' +
-        '<div class="f"><label for="sg-appr-name">Approved by</label><div class="v">' + names('sg-appr-name', view.release.signers.approved, rv.approved_date ? rv.approved_by : '') + ' ' +
-        '<input id="sg-appr-date" size="12" value="' + esc(rv.approved_date || today) + '"> <button id="btn-sign-approved">Sign as approved</button>' +
-        '<div class="note">' + esc(view.release.signers.approved.join(' or ')) + ', after the check. A new check clears the approval. Example: ' + esc(view.release.signers.approved[0] || 'Samrat') + ', ' + esc(today) + '.</div><div class="refusal" data-for="approved"></div></div></div></div>';
+        '<div class="f"><label>Prepared by</label><div class="v fixed">' + show(rv.prepared_by) + '</div></div>';
+      if (sg) {
+        h += '<div class="f"><label>Checked by</label><div class="v">' + signed(rv.checked_by, rv.checked_date) +
+          (sg.checked.can ? '<span class="sg-who" id="sg-check-who">' + esc(sg.checked.name) + '</span> <input id="sg-check-date" size="12" value="' + esc(today) + '"> <button id="btn-sign-checked">Sign as checked</button>' +
+            '<div class="note">You sign with your login name. Date YYYY-MM-DD. Example: ' + esc(today) + '.</div>' : '<span class="muted" id="sg-check-line">' + esc(sg.checked.line) + '</span>') +
+          '<div class="refusal" data-for="checked"></div></div></div>' +
+          '<div class="f"><label>Approved by</label><div class="v">' + signed(rv.approved_by, rv.approved_date) +
+          (sg.approved.can ? '<span class="sg-who" id="sg-appr-who">' + esc(sg.approved.name) + '</span> <input id="sg-appr-date" size="12" value="' + esc(today) + '"> <button id="btn-sign-approved">Sign as approved</button>' +
+            '<div class="note">After the check. A new check clears the approval. Example: ' + esc(today) + '.</div>' : '<span class="muted" id="sg-appr-line">' + esc(sg.approved.line) + '</span>') +
+          '<div class="refusal" data-for="approved"></div></div></div></div>';
+      } else {
+        h += '<div class="f"><label for="sg-check-name">Checked by</label><div class="v">' + names('sg-check-name', view.release.signers.checked, rv.checked_date ? rv.checked_by : '') + ' ' +
+          '<input id="sg-check-date" size="12" value="' + esc(rv.checked_date || today) + '"> <button id="btn-sign-checked">Sign as checked</button>' +
+          '<div class="note">' + esc(view.release.signers.checked.join(' or ')) + ', never the preparer' + (rv.prepared_by ? ' (' + esc(rv.prepared_by) + ')' : '') + '. Date YYYY-MM-DD. Example: ' +
+          esc(view.release.signers.checked[0] || 'Raj') + ', ' + esc(today) + '.</div><div class="refusal" data-for="checked"></div></div></div>' +
+          '<div class="f"><label for="sg-appr-name">Approved by</label><div class="v">' + names('sg-appr-name', view.release.signers.approved, rv.approved_date ? rv.approved_by : '') + ' ' +
+          '<input id="sg-appr-date" size="12" value="' + esc(rv.approved_date || today) + '"> <button id="btn-sign-approved">Sign as approved</button>' +
+          '<div class="note">' + esc(view.release.signers.approved.join(' or ')) + ', after the check. A new check clears the approval. Example: ' + esc(view.release.signers.approved[0] || 'Samrat') + ', ' + esc(today) + '.</div><div class="refusal" data-for="approved"></div></div></div></div>';
+      }
       h += '<div class="card walk-box"><h3>Floor trial <span class="muted">a newcomer runs the SOP twice in a row with zero questions</span></h3>' +
         grid([['No.', 'val_id'], ['Date', 'date'], ['Walked by', 'walked_by'], ['Watched by', 'watched_by'], ['Questions', 'questions_asked'], ['Defects found', 'defects_found']], view.validation_log || []) +
         '<div class="f"><label>Add a walk-through</label><div class="v">Date <input id="wk-date" size="12" value="' + esc(today) + '"> Walked by <input id="wk-walked" size="14"> Watched by <input id="wk-watched" size="14" value="' + esc(view.editor || '') + '"> ' +
         'Questions asked <input id="wk-q" size="3" value="0"> Defects found <input id="wk-defects" size="24"> <button id="btn-walk">Add</button>' +
         '<div class="note">One row per walk-through. Example: 2026-11-20, Ramesh, Divyal, 0 questions.</div><div class="refusal" data-for="walk"></div></div></div></div>';
-      h += '<div class="card release-box"><button id="btn-release">Release ' + esc(rv.rev) + ' to the floor</button> <span class="muted">every item must pass or be accepted with a reason; the earlier Released revision becomes Superseded</span>' +
+      h += '<div class="card release-box">' + (sg && !sg.release.can ? '<span class="muted" id="release-line">' + esc(sg.release.line) + '</span>' :
+        '<button id="btn-release">Release ' + esc(rv.rev) + ' to the floor</button> <span class="muted">every item must pass or be accepted with a reason; the earlier Released revision becomes Superseded</span>') +
         '<div class="refusal" data-for="release"></div></div>';
     } else {
       h += '<p class="ok">' + esc(rv.rev) + ' is ' + esc(rv.status) + '. ' + show(rv.release_note) + '</p>';

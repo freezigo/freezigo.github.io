@@ -280,6 +280,8 @@ const APP = (function () {
       case 'examples': body.innerHTML = T.examplesTab(view); APP_LISTS.wire(body); break;
       case 'release': {
         view.today = nowIso().slice(0, 10); view.editor = state.editor;
+        /* build 59: online, the login signs as itself; who may check, approve and release (spec/example_edit_online.md part 11.3) */
+        view.sign_state = state.online && state.me && view.rev ? ENGINE_RELEASE.signState(view.rev, state.me) : null;
         /* the Accept ticks and reasons stay while the page is open (example_release.md part 8.3), per SOP and revision */
         const keepKey = view.sop.sop_id + '|' + view.sop.current_rev;
         const kept = state.accepts[keepKey] || (state.accepts[keepKey] = {});
@@ -287,14 +289,14 @@ const APP = (function () {
         const keep = function (no) { kept[no] = { on: $('acc-tick-' + no).checked, reason: $('acc-reason-' + no).value }; };
         for (const t of body.querySelectorAll('.acc-tick')) { t.onchange = function () { keep(t.dataset.no); }; }
         for (const r of body.querySelectorAll('.acc-reason')) { r.oninput = function () { keep(r.dataset.no); }; }
-        if ($('btn-sign-checked')) {
-          $('btn-sign-checked').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('checked', $('sg-check-name').value, $('sg-check-date').value); }); };
-          $('btn-sign-approved').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('approved', $('sg-appr-name').value, $('sg-appr-date').value); }); };
-          $('btn-walk').onclick = function () { guard('ui walk', APP_ACTIONS.addWalk); };
-          $('btn-release').onclick = function () { guard('ui release', APP_ACTIONS.release); };
-          for (const f of body.querySelectorAll('.fail-click')) {
-            f.onclick = function () { const t = $('acc-tick-' + f.dataset.no); if (t) { t.checked = true; keep(f.dataset.no); $('acc-reason-' + f.dataset.no).focus(); } };
-          }
+        /* the name of a sign: online the login's (build 59), on the PC the one picked from the list */
+        const signName = id => (view.sign_state ? state.me.name : $(id).value);
+        if ($('btn-sign-checked')) { $('btn-sign-checked').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('checked', signName('sg-check-name'), $('sg-check-date').value); }); }; }
+        if ($('btn-sign-approved')) { $('btn-sign-approved').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('approved', signName('sg-appr-name'), $('sg-appr-date').value); }); }; }
+        if ($('btn-walk')) { $('btn-walk').onclick = function () { guard('ui walk', APP_ACTIONS.addWalk); }; }
+        if ($('btn-release')) { $('btn-release').onclick = function () { guard('ui release', APP_ACTIONS.release); }; }
+        for (const f of body.querySelectorAll('.fail-click')) {
+          f.onclick = function () { const t = $('acc-tick-' + f.dataset.no); if (t) { t.checked = true; keep(f.dataset.no); $('acc-reason-' + f.dataset.no).focus(); } };
         }
         break;
       }

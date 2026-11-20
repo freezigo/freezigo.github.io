@@ -243,7 +243,16 @@ const ENGINE_ONLINE = (function () {
     switch_value: 'Not switched: master is online or pc.',
     switch_differs: 'Not switched: the tables online differ from this folder: put it online again.',
     import_after_switch: 'Not saved: the SOPs are edited online since {v}: a PC\'s data would go over the changes made online. Switch back to the PC first.',
-    file_there: '{v} is there already: a photo is never written over.'
+    file_there: '{v} is there already: a photo is never written over.',
+    /* build 59 (spec/example_edit_online.md part 11): the rows a save writes, the sign-offs and the release by role */
+    check_role: 'Not saved: only {v} checks.',
+    approve_role: 'Not saved: only {v} approves.',
+    release_role: 'Not saved: only {v} releases.',
+    own_name: 'Not saved: a sign carries the name of the login ({v}).',
+    preparer: 'Not saved: the preparer ({v}) does not check.',
+    check_first: 'Not saved: Checked by and the check date are needed before approval.',
+    copy_sign: 'Not saved: a copy is not signed or released: make it the good version first (Header tab).',
+    new_rev: 'Not saved: a new revision starts as a Draft with no sign-offs.'
   };
   /* saveLine(kind, value) → the line of sop_save */
   function saveLine(kind, value) {

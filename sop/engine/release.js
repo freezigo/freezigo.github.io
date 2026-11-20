@@ -304,6 +304,46 @@ const ENGINE_RELEASE = (function () {
     return Object.assign({}, rhRow, { what_changed: text, approved_by: approvedBy });
   }
 
-  return { releaseCheck, releaseLabel, nextRev, revisionAfterEdit, lockText, signersFor, acceptedItems, releaseResult, floorRev, signRevision, logWalk, compareSummary, releaseRevision, releaseHistoryRow, SIGNERS, TO_SIGN };
+  /* ---- build 59 (spec/example_edit_online.md part 11) ---- */
+  /* releaseAsk(tables, sopId, accepted) → { title, line, lines, ok, cancel }: the pop-up after a click on Release (Vishal 2026-11-20: "a
+     catchy line with warning and option to go ahead or cancel"); accepted = the ticked items [{ no, reason }] */
+  function releaseAsk(tables, sopId, accepted) {
+    const sop = tables.sops.find(s => s.sop_id === sopId);
+    if (!sop) { fail('releaseAsk', 'SOP ' + sopId + ' is not in sops'); }
+    if (!empty(sop.copy_of)) { fail('releaseAsk', sopId + ' is a copy: a copy is not released'); }
+    if (empty(sop.current_rev)) { fail('releaseAsk', sopId + ' has no revision'); }
+    const lines = [sopId + ' ' + sop.current_rev + ' goes to the floor now: every operator works from it.'];
+    const nos = uniq((accepted || []).map(a => Number(a.no))).sort((a, b) => a - b);
+    if (nos.length) { lines.push('For a floor trial: ' + nos.length + (nos.length === 1 ? ' item' : ' items') + ' accepted: ' + nos.join(', ') + '.'); }
+    const old = tables.sop_revisions.filter(r => r.sop_id === sopId && r.rev !== sop.current_rev && r.status === 'Released').map(r => r.rev);
+    if (old.length) { lines.push(old.join(' and ') + (old.length === 1 ? ' becomes' : ' become') + ' Superseded.'); }
+    if (sop.sop_type === 'Process') {
+      const into = uniq(tables.steps.filter(s => s.link_sop === sopId && s.sop_id !== sopId).map(s => s.sop_id)).sort();
+      if (into.length) { lines.push('It flows into the SOPs that use it: ' + into.join(', ') + '.'); }
+    }
+    lines.push('A release cannot be taken back: a change after it needs a new revision.');
+    return { title: 'Release to the floor', line: 'Check twice, release once.', lines: lines, ok: 'Go ahead, release', cancel: 'Cancel' };
+  }
+  /* signState(revision, me) → null on the PC (me null: the names are picked from the lists); online, for the login me = { name, roles }:
+     { checked, approved, release }, each { can, name (the login's, when it can), line (why not, else null) }: Checked by needs the check
+     role and not the preparer; Approved by and Release need the approve role */
+  function signState(revision, me) {
+    if (!revision) { fail('signState', 'no revision'); }
+    if (!me) { return null; }
+    const roles = Array.isArray(me.roles) ? me.roles : [];
+    const checkers = signersFor(revision).checked;
+    const left = SIGNERS.checked.filter(n => checkers.indexOf(n) < 0);
+    const isPreparer = !empty(revision.prepared_by) && firstWord(me.name) === firstWord(revision.prepared_by);
+    const canCheck = roles.indexOf('check') >= 0 && !isPreparer, canApprove = roles.indexOf('approve') >= 0;
+    const checkLine = (checkers.length ? checkers.join(' or ') + ' checks' : 'Nobody checks') + (left.length ? ': ' + left[0] + ' prepared this revision.' : '.');
+    return {
+      checked: { can: canCheck, name: canCheck ? me.name : null, line: canCheck ? null : checkLine },
+      approved: { can: canApprove, name: canApprove ? me.name : null, line: canApprove ? null : SIGNERS.approved.join(' or ') + ' approves.' },
+      release: { can: canApprove, line: canApprove ? null : SIGNERS.approved.join(' or ') + ' releases.' }
+    };
+  }
+
+  return { releaseCheck, releaseLabel, nextRev, revisionAfterEdit, lockText, signersFor, acceptedItems, releaseResult, floorRev, signRevision, logWalk, compareSummary, releaseRevision, releaseHistoryRow,
+    releaseAsk, signState, SIGNERS, TO_SIGN };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_RELEASE;

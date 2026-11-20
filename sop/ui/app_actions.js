@@ -57,6 +57,22 @@ const APP_ACTIONS = (function () {
     const dry = ENGINE.releaseRevision({ tables: state.tables, files: state.files, sop_id: sop.sop_id, accepted: accepted,
       ctx: { who: state.editor, now: nowIso(), next_hist_id: 1, next_note_id: 1, reason: '' } });
     if (dry.refusals) { console.log('[engine → ui] releaseRevision refused'); refusalLine('.refusal[data-for="release"]', dry.refusals); return; }
+    /* build 59 (example_edit_online.md part 11.4): the release asks first; Cancel (or Esc) saves nothing, the ticks and reasons stay */
+    const ask = ENGINE_RELEASE.releaseAsk(state.tables, sop.sop_id, accepted);
+    console.log('[ui] release asks first: ' + ask.line + ' ' + ask.lines.join(' '));
+    const close = () => { const b = $('pop-back'); if (b) { b.remove(); } };
+    const cancel = () => { close(); console.log('[ui] release cancelled: nothing saved'); };
+    close();
+    document.body.insertAdjacentHTML('beforeend', RENDER_POP.releasePop(ask));
+    $('btn-relask-cancel').onclick = cancel;
+    $('pop-back').onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } };
+    $('pop-back').onmousedown = e => { if (e.target.id === 'pop-back') { e.preventDefault(); cancel(); } };
+    /* the tab of the final PDF opens at this click (window.open before any wait), so the browser lets it open */
+    $('btn-relask-ok').onclick = () => { close(); guard('ui release', () => releaseNow(sop, accepted)); };
+    $('btn-relask-cancel').focus();
+  }
+  async function releaseNow(sop, accepted) {
+    console.log('[ui] release: go ahead');
     const w = window.open('', '_blank');
     if (w) { w.document.write('<p style="font-family: Arial, sans-serif">Making the floor copy…</p>'); }
     /* next_note_id: the release of a Process SOP writes notes on the main SOPs that use it (build 31) */

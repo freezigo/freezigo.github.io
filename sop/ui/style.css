@@ -436,3 +436,11 @@ table.stepcmp th { text-align: left; vertical-align: top; }
 table.stepcmp td.v { white-space: pre-wrap; vertical-align: top; }
 table.stepcmp td.diff-red { background: rgba(240, 96, 93, 0.16); box-shadow: inset 3px 0 0 var(--red); }
 table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: inset 3px 0 0 var(--blue); }
+/* build 59: the sign box online and the release pop-up (spec/example_edit_online.md parts 11.3 and 11.4) */
+.sign-box .sg-who { font-weight: bold; margin-right: 4px; }
+.release-pop { width: 560px; border-color: var(--amber); }
+.release-pop .release-catch { color: var(--amber); font-size: 19px; }
+.release-pop .release-lines { margin: 6px 0 4px; padding-left: 20px; line-height: 1.5; }
+.release-pop .release-last { font-weight: bold; margin-top: 4px; }
+#btn-relask-ok { background: #5a2a22; border-color: var(--red); }
+#btn-relask-ok:hover { background: #7a362b; }
