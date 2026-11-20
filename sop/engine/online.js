@@ -185,7 +185,11 @@ const ENGINE_ONLINE = (function () {
   /* the folders whose files go online: the photos and the pictures. The final PDFs (Final SOPs, Final SOPs/Old) stay on the PC: not
      needed online (Vishal 2026-11-17, build 54); they are neither sent nor checked nor named in the result */
   /* build 57: also the pictures made from the 3D model (source/Pictures/ready, with ready.json) and the Planner charts of new SOPs */
-  function fileDirs() { return [CFG().photos_dir, CFG().pictures_dir, CFG().pictures_dir + '/ready', CFG().source_dir + '/chart']; }
+  /* build 63: editDirs() = the four folders an editor may add a file to after switch day (the file store's insert rule of build 57);
+     fileDirs() = every folder whose files go online and come back: those four and prompt (the draft prompt's rules file, skill.json,
+     read after the login; put online by an admin with Put this PC's data online or Put this PC's new files online) */
+  function editDirs() { return [CFG().photos_dir, CFG().pictures_dir, CFG().pictures_dir + '/ready', CFG().source_dir + '/chart']; }
+  function fileDirs() { return editDirs().concat([CFG().prompt_dir]); }
   const FILE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf', json: 'application/json' };
   /* the signs the file store (Supabase Storage) takes in a name: letters and digits of English, _ / ! - . * ' ( ) space & $ @ = ; : + , ? */
   const NAME_OK = /^(\w|\/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$/;
@@ -365,7 +369,7 @@ const ENGINE_ONLINE = (function () {
   }
 
   return { dbTable, dbKey, sqlType, columnsOf, tableSql, importRows, importSql, dbRowText, dbHashSql, fromOnline, inOrder, payload, hashDiff,
-    fileDirs, fileJobs, viewRights, editRights, saveLine, seenWhat, saveChanges, newFileJobs, indiaDate, switchState, archiveNote, archiveFile,
+    editDirs, fileDirs, fileJobs, viewRights, editRights, saveLine, seenWhat, saveChanges, newFileJobs, indiaDate, switchState, archiveNote, archiveFile,
     PREFIX, VIEW_LINE, SAVE_LINES, ARCHIVE_FILE };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_ONLINE;

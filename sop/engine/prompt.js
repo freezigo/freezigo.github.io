@@ -1,14 +1,15 @@
 /* SOP Builder logic piece for the fixed prompt of a draft file (spec/example_draft_file.md part 7; build 61, Vishal 2026-11-20: "i need to
    copy the prompt from the builder and give it to any ai along with any other data i have like pdfs chart, drawings photos"): makePrompt
    ({ skill, tables, today, skillDate, build }) → { text, example }: how to use it, the job, what to ask, the freezigo-sop skill in full
-   (prompt/skill.js, made by tools/make_prompt.js from source/skill), the rules of the data file, every field (schema/types.js, sets.js),
+   (prompt/skill.json in the SOP App folder, made by tools/make_prompt.js from source/skill without the PC's name and folders, read
+   after the login: build 63), the rules of the data file, every field (schema/types.js, sets.js),
    an example (BMC-L1-TANK-01, engine/draft.js exportDraft), the Glossary of the tables, the PDF layout, the reader's checks. The words
    change only with a new version (PROMPT_NAME). Pure. Classic script (global ENGINE_PROMPT); module in Node. Check: tests/prompt_check.js. */
 const ENGINE_PROMPT = (function () {
 const TYPES_ = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
 const SETS_ = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
 const DR = (typeof ENGINE_DRAFT !== 'undefined') ? ENGINE_DRAFT : require('./draft.js');
-const PROMPT_NAME = 'Freezigo SOP draft prompt v2';
+const PROMPT_NAME = 'Freezigo SOP draft prompt v3';
 const FILE_NAME = PROMPT_NAME + '.md';
 const EXAMPLE_SOP = 'BMC-L1-TANK-01';
 const EXAMPLE_BY = 'AI chat for Divyal Patel';
@@ -133,7 +134,7 @@ function example(tables, today) {
 
 const STATIC_HEAD = (today, glossary, skillDate, BUILD) => `# ${PROMPT_NAME}
 
-Made by the SOP Builder (build ${BUILD}) on ${today} from the freezigo-sop skill (copied ${skillDate}), the SOP Builder's data rules (contract ${TYPES_.version}) and its Glossary (${glossary} terms). Made by the SOP Builder (Copy the prompt): never edit it by hand; a change is a new version.
+Made by the SOP Builder (build ${BUILD}) on ${today} from the freezigo-sop skill (copied ${skillDate}; the company PC's name and folders left out), the SOP Builder's data rules (contract ${TYPES_.version}) and its Glossary (${glossary} terms). Made by the SOP Builder (Copy the prompt): never edit it by hand; a change is a new version.
 
 ## How to use it (for the person)
 
@@ -164,9 +165,9 @@ Before you start, ask in one message, in simple words, numbered, with an example
 
 ## 3. The skill in this chat
 
-Part 4 is the freezigo-sop skill in full: the rules for every Freezigo SOP. It was written for the SOP project on Samrat's PC. In this chat:
+Part 4 is the freezigo-sop skill in full: the rules for every Freezigo SOP. It was written for the SOP project on the company PC. In this chat:
 
-- You are not on Samrat's PC and you have no project docs: this file is all you have. Skip the parts about files on the PC, the device tools, the decisions log, the master workbook (sop_data.py, build_master.py, Excel tables) and master build numbers.
+- You are not on the company PC and you have no project docs: this prompt is all you have. Skip the parts about files on the PC, the decisions log, the master workbook (sop_data.py, build_master.py, Excel tables) and master build numbers.
 - Stages: (b) is the outline in this chat, when the person asks for it; (c) is the two files. The floor trial (d) and the approval (e) happen later, in the SOP Builder.
 - The SOP Builder gives each step its Key, Seq, Class, Signed by and hold number, and names the photos by Key. Leave them out of the data file.
 - A review of an SOP that is already in the SOP Builder is done in the Builder (notes on its steps), not with this prompt.

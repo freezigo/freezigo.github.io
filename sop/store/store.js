@@ -230,6 +230,24 @@ const STORE = (function () {
       r.readAsDataURL(file);
     });
   }
+  /* readText(relPath) → the text of a file, or null when it is not there (build 63: prompt/skill.json, the draft prompt's rules): the
+     folder; online, the signed link of the listing (the file store, after the login); in memory, the test seam memory.__texts */
+  async function readText(relPath) {
+    if (mode === 'memory') { return (memory.__texts && typeof memory.__texts[relPath] === 'string') ? memory.__texts[relPath] : null; }
+    if (mode === 'online') {
+      const url = memory.__file_urls && memory.__file_urls[relPath];
+      if (!url) { return null; }
+      try { const r = await fetch(url); if (!r.ok) { fail('readText', relPath + ': ' + r.status); } return await r.text(); }
+      catch (e) { fail('readText', relPath + ' cannot be read online (' + e.message + ')'); }
+    }
+    if (mode !== 'folder') { fail('readText', 'no folder picked yet'); }
+    const i = relPath.lastIndexOf('/');
+    let d;
+    try { d = await dirHandle(relPath.slice(0, i)); } catch (e) { return null; }
+    let fh;
+    try { fh = await d.getFileHandle(relPath.slice(i + 1)); } catch (e) { return null; }
+    try { return await (await fh.getFile()).text(); } catch (e) { fail('readText', relPath + ' cannot be read (' + e.message + ')'); }
+  }
   async function listFiles(relPath) {
     /* the files right in the folder, not in the folders under it (as a folder lists them; build 50: Final SOPs and Final SOPs/Old) */
     if (inMemory()) { return (memory.__files || []).filter(function (f) { return f.indexOf(relPath + '/') === 0 && f.slice(relPath.length + 1).indexOf('/') < 0; }).sort(); }
@@ -429,7 +447,7 @@ const STORE = (function () {
 
   return { pickFolder: pickFolder, reopenFolder: reopenFolder, rememberedFolderName: rememberedFolderName,
     readTable: readTable, writeTable: writeTable, readAll: readAll, nextId: nextId, fileExists: fileExists,
-    fileURL: fileURL, fileDataURL: fileDataURL, listFiles: listFiles, copyChart: copyChart, writePhoto: writePhoto, makeDir: makeDir, moveFile: moveFile,
+    fileURL: fileURL, fileDataURL: fileDataURL, readText: readText, listFiles: listFiles, copyChart: copyChart, writePhoto: writePhoto, makeDir: makeDir, moveFile: moveFile,
     useMemory: useMemory, status: status, canReadFiles: canReadFiles, useOnline: useOnline, pickSource: pickSource, pickTarget: pickTarget, archiveInfo: archiveInfo, fileLinks: fileLinks };
 })();
 if (typeof module !== 'undefined') module.exports = STORE;

@@ -110,11 +110,24 @@ const APP_KICK = (function () {
     if ($('kd-name')) { $('kd-name').oninput = e => { k.copy_name = e.target.value; }; }
     if ($('btn-draft-make')) { $('btn-draft-make').onclick = () => guard('ui importDraft', bringDraft); }
   }
-  /* givePrompt(how): build 61: the fixed prompt made now (the skill of prompt/skill.js, the fields, the Glossary and the example of the
-     tables), copied for a paste into any AI chat, or saved as a file in Downloads */
+  /* givePrompt(how): build 61: the fixed prompt made now (the rules, the fields, the Glossary and the example of the tables), copied for
+     a paste into any AI chat, or saved as a file in Downloads. Build 63: the rules come from prompt/skill.json (the SOP App folder on
+     the PC; the file store after the login online: never a file of the public page) */
   async function givePrompt(how) {
     const k = kick();
-    const p = ENGINE_PROMPT.makePrompt({ skill: PROMPT_SKILL.text, skillDate: PROMPT_SKILL.date, tables: state.tables, today: nowIso().slice(0, 10), build: CONFIG.builder_build });
+    const text = await STORE.readText(CONFIG.skill_file);
+    let rules = null;
+    try { rules = text === null ? null : JSON.parse(text); } catch (e) { rules = null; }
+    if (!rules || typeof rules.text !== 'string') {
+      k.prompt_done = text === null
+        ? (state.online ? 'The rules file ' + CONFIG.skill_file + ' is not online yet: Samrat puts this PC\'s data online (Admin card), or Put this PC\'s new files online after the switch.'
+          : 'The rules file ' + CONFIG.skill_file.replace(/\//g, '\\') + ' is not in the SOP App folder: node tools\\make_prompt.js writes it.')
+        : 'The rules file ' + CONFIG.skill_file + ' is not the file tools\\make_prompt.js writes: make it again.';
+      console.log('[ui] prompt ' + how + ': ' + k.prompt_done);
+      if ($('prompt-done')) { $('prompt-done').innerHTML = '<div class="notok">' + RENDER.esc(k.prompt_done) + '</div>'; }
+      return;
+    }
+    const p = ENGINE_PROMPT.makePrompt({ skill: rules.text, skillDate: rules.date, tables: state.tables, today: nowIso().slice(0, 10), build: CONFIG.builder_build });
     const words = ENGINE_PROMPT.PROMPT_NAME + ' (' + p.text.length + ' characters, ' + state.tables.glossary.length + ' Glossary terms)';
     if (how === 'save') {
       const a = document.createElement('a');

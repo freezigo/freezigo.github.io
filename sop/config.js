@@ -2,7 +2,7 @@
    written into code elsewhere. Classic script (global CONFIG). */
 const CONFIG = {
   app_name: 'SOP Builder',
-  builder_build: 61,           // raise by one on every delivery
+  builder_build: 63,           // raise by one on every delivery
   floor_build: 0,              // Floor App, from S3
   contract: '1.6',
   contract_reads: ['1.3', '1.4', '1.5', '1.6'], // an older file reads as 1.6 (the new fields empty) until tools/migrate_1_6.py adds them; every write says 1.6
@@ -10,6 +10,8 @@ const CONFIG = {
   photos_dir: 'source/Photos',
   source_dir: 'source', // reference photos named by key
   pictures_dir: 'source/Pictures',
+  prompt_dir: 'prompt',        // build 63: the draft prompt's rules file (skill.json), read after the login, never a file of the page
+  skill_file: 'prompt/skill.json',
   timezone: 'Asia/Kolkata',
   /* build 52 (spec/example_online.md part 6): the ERP's Supabase project, the same URL and public key as the ERP's web app (its
      .env.production), so the SOP page shares the ERP's login; site = true only on the page at freezigo.github.io/sop (site.js) */
