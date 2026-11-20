@@ -46,10 +46,11 @@ const RENDER = (function () {
       ' <button id="btn-home">SOP list</button>';
   }
 
-  /* topBarOnline(cfg, me): the view-only page inside the Freezigo app (build 52): the way back, the name of the login, View only */
-  function topBarOnline(cfg, me) {
+  /* topBarOnline(cfg, me, editing): the page inside the Freezigo app (build 52): the way back, the name of the login, View only (build
+     56: Editing online, for the edit role once switch day has come) */
+  function topBarOnline(cfg, me, editing) {
     const back = '<a class="erp-back" href="' + esc((cfg.online && cfg.online.erp_url) || '../') + '">← Freezigo</a>';
-    const who = me ? ' <span class="who">' + esc(me.name) + '</span> <span class="tag view-tag">View only</span>' : '';
+    const who = me ? ' <span class="who">' + esc(me.name) + '</span> ' + (editing ? '<span class="tag edit-tag">Editing online</span>' : '<span class="tag view-tag">View only</span>') : '';
     return back + ' <span class="app">' + esc(cfg.app_name) + '</span> <span class="build">Build ' + esc(cfg.builder_build) + '</span>' + who +
       (me ? ' <button id="btn-home">SOP list</button>' : '');
   }

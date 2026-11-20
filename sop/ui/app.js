@@ -7,7 +7,10 @@ const APP = (function () {
      before build 50 (every SOP changes as it did then) */
   const state = { editor: null, tables: null, files: null, sop_id: null, tab: null, section: null, folderName: null,
     builtOnly: true, vnFilter: { state: 'open', section: '' }, glossaryFind: '', pictureUrls: {}, accepts: {}, rightsMode: null,
-    viewOnly: false, me: null };   /* build 52: viewOnly = the page inside the Freezigo app (spec/example_online.md part 6); me = the login */
+    viewOnly: false, me: null,   /* build 52: viewOnly = the page inside the Freezigo app (spec/example_online.md part 6); me = the login */
+    online: false, master: null, viewLine: null, fileUrls: null };   /* build 56 (spec/example_edit_online.md): online = the page inside the
+    Freezigo app; viewOnly there unless editRights lets the login edit (the edit role, switch day come); viewLine = the line of a view-only
+    page; fileUrls = the links to the files online */
 
   function $(id) { return document.getElementById(id); }
   function main() { return $('main'); }
@@ -18,13 +21,15 @@ const APP = (function () {
   }
 
   function drawTopBar() {
-    if (state.viewOnly) {
-      /* build 52: the view-only page: the login's name, View only, the way back to the Freezigo app; no folder, no name to pick */
-      $('topbar').innerHTML = RENDER.topBarOnline(CONFIG, state.me);
+    if (state.online) {
+      /* build 52: the page inside the Freezigo app: the login's name, View only (build 56: or Editing online), the way back to the
+         Freezigo app; no folder, no name to pick */
+      $('topbar').innerHTML = RENDER.topBarOnline(CONFIG, state.me, !state.viewOnly);
       if ($('btn-home')) { $('btn-home').onclick = function () { guard('ui home', showSopList); }; }
       return;
     }
     $('topbar').innerHTML = RENDER.topBar(CONFIG, STORE.status(), state.folderName, state.editor, SETS.editor);
+    if (state.viewOnly) { $('topbar').insertAdjacentHTML('beforeend', ' <span class="tag view-tag" id="archive-tag" title="' + RENDER.esc(state.viewLine || '') + '">Archive: reads only</span>'); }   /* build 57 */
     $('btn-pick').onclick = function () { guard('ui pickFolder', pickFolder); };
     $('btn-open').onclick = function () { guard('ui openFolder', openFolder); };
     $('btn-home').onclick = function () { guard('ui home', showSopList); };
@@ -43,7 +48,7 @@ const APP = (function () {
   /* ---- who changes what (build 50, spec/example_rights.md) ---- */
   /* rightsOf(sopId) → ENGINE_RIGHTS.rightsOf for the name at the top, or null in the test seam rightsMode 'open' */
   function rightsOf(sopId) {
-    if (state.viewOnly) { return ENGINE_ONLINE.viewRights(); }   /* build 52: nothing changes on the view-only page */
+    if (state.viewOnly) { return ENGINE_ONLINE.viewRights(state.viewLine); }   /* build 52: nothing changes on the view-only page */
     return state.rightsMode === 'open' || !state.tables ? null : ENGINE_RIGHTS.rightsOf(state.tables, sopId, state.editor);
   }
   /* lockOn(v, sopId): a view of an SOP the name at the top does not change is locked with the line of its rights, as a released
@@ -73,6 +78,14 @@ const APP = (function () {
       state.files = await STORE.listFiles(CONFIG.photos_dir);
       console.log('[store → ui] ' + Object.keys(state.tables).length + ' tables, ' + state.files.length + ' photo files');
       state.pictureUrls = {};
+      /* build 57: a folder archived on switch day only reads; every view is locked with its line */
+      const arch = state.online ? null : STORE.archiveInfo();
+      if (!state.online) {
+        state.viewOnly = !!arch;
+        state.viewLine = arch ? arch.line : null;
+        document.body.classList.toggle('view-only', !!arch);
+        if (arch) { console.log('[store → ui] ' + arch.line); }
+      }
       drawTopBar();
       await showSopList();
     });
@@ -88,12 +101,25 @@ const APP = (function () {
   }
   async function writeTables(tables, ctx) {
     /* build 45: the History rows written now are the ones above beforeMax (a save of a main SOP with a copy opens the pop-up) */
-    if (state.viewOnly) { throw new Error('ui writeTables: ' + ENGINE_ONLINE.VIEW_LINE); }   /* build 52: never a save on the view-only page */
+    if (state.viewOnly) { throw new Error('ui writeTables: ' + (state.viewLine || ENGINE_ONLINE.VIEW_LINE)); }   /* build 52: never a save on the view-only page */
     const beforeMax = state.tables && state.tables.history ? state.tables.history.reduce((m, h) => Math.max(m, Number(h.hist_id) || 0), 0) : 0;
     /* build 50: a save the name at the top may not make is never written (the screens do not offer one) */
     if (state.rightsMode !== 'open' && state.tables && tables.history) {
       const no = ENGINE_RIGHTS.checkSave(state.tables, tables.history.filter(h => h.hist_id > beforeMax), ctx.who);
       if (no) { throw new Error('ui writeTables: ' + no.map(x => x.message).join(' · ')); }
+    }
+    /* test seam (tests/save_log.cjs): every save handed to a check, as it goes (tools/edit_check.js runs each in the database) */
+    if (typeof window !== 'undefined' && typeof window.__saveLog === 'function') { window.__saveLog(JSON.stringify({ who: ctx.who, mode: state.rightsMode, before: state.tables, changed: tables })); }
+    if (state.online) {
+      /* build 56: online, one save in one call (the database checks it and writes all or nothing), then the newest data; a refused save
+         loads the newest data too, draws the page again and says why */
+      const after = Object.assign({}, state.tables, tables);
+      console.log('[ui → online] save: ' + Object.keys(tables).join(', '));
+      try { await ONLINE.save(state.tables, after); }
+      catch (e) { await guard('ui online reload', reloadOnline); await guard('ui redraw', redraw); throw new Error('ui writeTables: ' + e.message); }
+      await reloadOnline();
+      APP_SYNC.afterWrite(tables, beforeMax);
+      return;
     }
     for (const name in tables) {
       console.log('[ui → store] writeTable ' + name + ': ' + tables[name].length + ' rows');
@@ -115,7 +141,9 @@ const APP = (function () {
     console.log('[engine → ui] sopList: ' + view.rows.length + ' SOPs');
     state.sopListRows = view.rows;
     main().innerHTML = RENDER.sopList(view, state.builtOnly, SETS.sop_status);
-    if (state.viewOnly) { APP_ONLINE.drawCard(main(), state.me); } else { APP_KICK.draw(); }   /* build 52: no new SOP on the view-only page */
+    /* build 52: the admin card online; build 57: New SOP online too, for the page that edits (the chart file goes to the file store) */
+    if (state.online) { APP_ONLINE.drawCard(main(), state.me, state.switch); }
+    if (!state.viewOnly) { APP_KICK.draw(); }
     for (const a of main().querySelectorAll('.sop-link')) {
       a.onclick = function (e) { e.preventDefault(); guard('ui showSop', function () { return showSop(a.dataset.sop, 'header'); }); };
     }
@@ -326,6 +354,8 @@ const APP = (function () {
     /* a right-click on a row of a step card edits only that row (example_flow.md part 20, build 35) */
     APP_FIELD.wire($('section-view'), { lockText: view.sop.lock_text, cardOf: k => view.steps.find(s => s.key === k) || null, openFull: k => APP_ACTIONS.showEdit(k),
       done: async function (r, ctx, k, row) { await writeTables(r.tables, ctx); await refreshSection(null); APP_FIELD.reveal(k, row); } });
+    /* build 58: the red and blue marks on the step cards of a copy (spec/example_edit_online.md part 10) */
+    APP_MARKS.draw($('section-view'), state.tables, sop.sop_id);
   }
 
   async function refreshSection(scrollKey) {
@@ -345,10 +375,12 @@ const APP = (function () {
   }
 
   /* ---- build 52: the page inside the Freezigo app (spec/example_online.md part 6) ---- */
-  /* startOnline(): the login of the Freezigo app on this browser, then every table and file from the ERP's Supabase, view only */
+  /* startOnline(): the login of the Freezigo app on this browser, then every table and file from the ERP's Supabase; view only, but
+     build 56: a login with the edit role edits once switch day has come (ENGINE_ONLINE.editRights; spec/example_edit_online.md) */
   async function startOnline() {
+    state.online = true;
     state.viewOnly = true;
-    document.body.classList.add('view-only');
+    document.body.classList.add('online', 'view-only');
     main().innerHTML = '<p class="muted">Loading the SOPs …</p>';
     const sess = await guard('ui online session', ONLINE.session);
     if (!sess) { state.me = null; drawTopBar(); main().innerHTML = RENDER.loginFirst(CONFIG); return; }
@@ -357,7 +389,18 @@ const APP = (function () {
       console.log('[online → ui] ' + state.me.name + ' (' + (state.me.sop ? state.me.roles.join(', ') : 'not one of the SOP people') + ')');
       state.editor = state.me.name;
       if (!state.me.sop) { drawTopBar(); main().innerHTML = RENDER.noAccess(); return; }   /* build 53: only the SOP people read (Samrat "2. b") */
-      STORE.useOnline(await ONLINE.loadAll());
+      /* build 56: the login edits once switch day has come and it has the edit role; else view only, with the line of the login */
+      state.switch = ENGINE_ONLINE.switchState(await ONLINE.masterRow());   /* build 57: who switched, and when */
+      state.master = state.switch.master;
+      const er = ENGINE_ONLINE.editRights(state.me, state.master);
+      state.viewOnly = !er.can_edit;
+      state.viewLine = er.line;
+      document.body.classList.toggle('view-only', state.viewOnly);
+      document.body.classList.toggle('online-edit', !state.viewOnly);
+      console.log('[online → ui] master ' + state.master + ': ' + (state.viewOnly ? 'view only' : 'editing online'));
+      const data = await ONLINE.loadAll();
+      state.fileUrls = data.files;
+      STORE.useOnline(data, { edit: !state.viewOnly, maxNo: ONLINE.maxNo, putFile: ONLINE.putFile });
       state.tables = await STORE.readAll();
       state.files = await STORE.listFiles(CONFIG.photos_dir);
       state.pictureUrls = {};
@@ -370,8 +413,26 @@ const APP = (function () {
     }
   }
 
+  /* build 57: the files the page knows now (from the start, and the ones it put online since), with their links */
+  const STORE_FILES = () => Object.assign({}, state.fileUrls || {}, STORE.fileLinks ? STORE.fileLinks() : {});
+  /* build 56: reloadOnline() → the newest tables from the database (after a save, or a refused one); the links to the files stay */
+  async function reloadOnline() {
+    const d = await ONLINE.loadTables();
+    STORE.useOnline({ tables: d.tables, files: STORE_FILES() }, { edit: !state.viewOnly, maxNo: ONLINE.maxNo, putFile: ONLINE.putFile });
+    state.tables = await STORE.readAll();
+    console.log('[online → ui] newest data: ' + Object.keys(state.tables).length + ' tables');
+  }
+  /* redraw(): the page again on the newest data: the SOP and tab open (the section too), else the SOP list */
+  async function redraw() {
+    if (!state.sop_id) { return showSopList(); }
+    const id = state.sop_id, tab = state.tab, section = state.section;
+    if (!state.tables.sops.some(s => s.sop_id === id)) { return showSopList(); }
+    await showSop(id, tab);
+    if (section !== null && section !== undefined && tab === 'sections') { await showSection(section); }
+  }
+
   async function start() {
-    if (CONFIG.online && CONFIG.online.site) { ERRORS.install(); console.log('[ui] ' + CONFIG.app_name + ' build ' + CONFIG.builder_build + ' online, view only'); return startOnline(); }
+    if (CONFIG.online && CONFIG.online.site) { ERRORS.install(); console.log('[ui] ' + CONFIG.app_name + ' build ' + CONFIG.builder_build + ' online'); return startOnline(); }
     ERRORS.install();
     state.editor = editorKept() || SETS.editor[0];
     state.folderName = await guard('ui rememberedFolder', STORE.rememberedFolderName);

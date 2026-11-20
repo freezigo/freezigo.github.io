@@ -13,7 +13,34 @@ const STORE = (function () {
   let mode = 'none';    // none | folder | memory | online (build 52: view only)
   const inMemory = () => mode === 'memory' || mode === 'online';
   const VIEW_ONLY = 'view only online: changes are made in the SOP Builder on Samrat\'s PC';
-  function noWrite(place) { if (mode === 'online') { fail(place, VIEW_ONLY); } }
+  /* build 56: the page that edits online saves through the database (store/online.js save), never through writeTable; photos,
+     pictures, chart files and the final PDFs are not written online (build 57 brings photos, pictures and chart files) */
+  let onlineEdit = false, maxNo = null, putFile = null;
+  /* build 57: a folder with ARCHIVED.json (switch day) only reads: archived = what the file says ({} when it cannot be read), else null */
+  let archived = null;
+  const ONLINE_FILES = 'the final PDFs stay off the database (build 54): save the floor copy where you keep them';
+  function noWrite(place) {
+    if (mode === 'folder' && archived) { fail(place, ENGINE_ONLINE.archiveNote(archived)); }
+    if (mode !== 'online') { return; }
+    if (!onlineEdit) { fail(place, VIEW_ONLY); }
+    if ((place === 'writePhoto' || place === 'copyChart') && putFile) { return; }
+    fail(place, place === 'writeTable' ? 'online, a save goes to the database in one call (store/online.js save)' : ONLINE_FILES);
+  }
+  /* build 57: a file put online by this page joins the list of files and their links at once */
+  function addFile(rel, url) {
+    memory.__files = (memory.__files || []).filter(f => f !== rel).concat([rel]).sort();
+    memory.__file_urls = Object.assign({}, memory.__file_urls || {}, { [rel]: url });
+  }
+  /* build 57: fileLinks() → { path: link } of the files the page knows online (the ones it put online since it loaded too) */
+  function fileLinks() { return inMemory() && memory.__file_urls ? Object.assign({}, memory.__file_urls) : {}; }
+  /* build 57: archiveInfo() → { line } for a folder that only reads since switch day, else null */
+  function archiveInfo() { return mode === 'folder' && archived ? { line: ENGINE_ONLINE.archiveNote(archived) } : null; }
+  async function readArchive(h) {
+    try {
+      const f = await (await h.getFileHandle(ENGINE_ONLINE.ARCHIVE_FILE)).getFile();
+      try { return JSON.parse(await f.text()) || {}; } catch (e) { return {}; }
+    } catch (e) { return null; }
+  }
 
   function fail(place, msg) { throw new Error('store.' + place + ': ' + msg); }
 
@@ -54,8 +81,10 @@ const STORE = (function () {
     const h = await window.showDirectoryPicker({ mode: 'readwrite' });
     await checkFolder(h);
     root = h; mode = 'folder'; memory = null;
-    await idbPut(CONFIG.idb_key, h);
-    console.log('[store] folder picked: ' + h.name);
+    archived = await readArchive(h);
+    /* remembered for Open folder next time; a browser that keeps nothing still opens the folder now (build 57) */
+    try { await idbPut(CONFIG.idb_key, h); } catch (e) { console.log('[store] the folder is not remembered for next time: ' + e.message); }
+    console.log('[store] folder picked: ' + h.name + (archived ? ' (archive: reads only)' : ''));
     return h.name;
   }
   async function reopenFolder() {
@@ -66,7 +95,8 @@ const STORE = (function () {
     if (p !== 'granted') { return null; }
     await checkFolder(h);
     root = h; mode = 'folder'; memory = null;
-    console.log('[store] folder reopened: ' + h.name);
+    archived = await readArchive(h);
+    console.log('[store] folder reopened: ' + h.name + (archived ? ' (archive: reads only)' : ''));
     return h.name;
   }
   async function rememberedFolderName() {
@@ -145,6 +175,8 @@ const STORE = (function () {
     const rows = (await readTable(name)).rows;
     let max = 0;
     for (const r of rows) { if (typeof r[field] === 'number' && r[field] > max) { max = r[field]; } }
+    /* build 56: online, the highest number in the database at this moment too (others may have saved since the page loaded) */
+    if (mode === 'online' && maxNo) { max = Math.max(max, await maxNo(name, field)); }
     return max + 1;
   }
 
@@ -224,6 +256,14 @@ const STORE = (function () {
     if (!fileName || typeof text !== 'string') { fail('copyChart', 'file name and text are required'); }
     const h = await sha16(text);
     const line = 'chart/' + fileName + ',' + chartName + ',' + String(nowIso).slice(0, 10) + ',' + h.bytes + ',' + h.hash + ',picked by ' + who + ' (Production Planner chart)';
+    if (mode === 'online') {
+      /* build 57: online the chart goes to the file store under source/chart; one there of that name stays (manifest.csv is a PC file) */
+      const rel = CONFIG.source_dir + '/chart/' + fileName;
+      if (await fileExists(rel)) { return 'there already online: ' + rel; }
+      const url = await putFile(rel, new Blob([text], { type: 'application/json' }));
+      addFile(rel, url);
+      return 'copied online: ' + rel + ' (' + h.bytes + ' bytes)';
+    }
     if (mode === 'memory') { memory.__copied = (memory.__copied || []).concat([{ file: CONFIG.source_dir + '/chart/' + fileName, bytes: h.bytes, line: line }]); return 'copied (test data): ' + line; }
     if (mode !== 'folder') { fail('copyChart', 'no folder picked yet'); }
     try {
@@ -245,6 +285,7 @@ const STORE = (function () {
     noWrite('writePhoto');
     if (!relPath || !blob) { fail('writePhoto', 'path and file are required'); }
     if (await fileExists(relPath)) { fail('writePhoto', relPath + ' is there already: a photo is never written over'); }
+    if (mode === 'online') { addFile(relPath, await putFile(relPath, blob)); return relPath; }   /* build 57: to the file store */
     const i = relPath.lastIndexOf('/');
     if (mode === 'memory') {
       const url = await new Promise(function (res) { const r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = function () { res(null); }; r.readAsDataURL(blob); });
@@ -295,7 +336,7 @@ const STORE = (function () {
 
   /* ---- test seam ---- */
   function useMemory(tables) {
-    memory = tables; root = null; mode = 'memory';
+    memory = tables; root = null; mode = 'memory'; onlineEdit = false; maxNo = null; putFile = null; archived = null;
     console.log('[store] using test data in memory: ' + Object.keys(tables).join(', '));
   }
   function status() { return { mode: mode, folder: root ? root.name : null }; }
@@ -303,9 +344,14 @@ const STORE = (function () {
   function canReadFiles() { return mode === 'folder' || mode === 'online'; }
 
   /* ---- build 52: the view-only page (spec/example_online.md part 6) ---- */
-  /* useOnline({ tables: { table: rows }, files: { path: signed URL }, saved_at }): the tables read from the ERP's Supabase; every
-     write is refused */
-  function useOnline(data) {
+  /* useOnline({ tables: { table: rows }, files: { path: signed URL }, saved_at }, opts): the tables read from the ERP's Supabase;
+     every write is refused. Build 56: opts = { edit: true, maxNo(table, field) } on the page that edits online: nextId asks the
+     database for the highest number too; a save goes to the database (store/online.js save), not through writeTable */
+  function useOnline(data, opts) {
+    onlineEdit = !!(opts && opts.edit);
+    maxNo = (opts && typeof opts.maxNo === 'function') ? opts.maxNo : null;
+    putFile = (opts && opts.edit && typeof opts.putFile === 'function') ? opts.putFile : null;   /* build 57: files go to the file store */
+    archived = null;
     const m = {};
     for (const n of CONFIG.tables) {
       m[n] = { table: n, contract: CONFIG.contract, saved_at: (data && data.saved_at) || null, saved_by: 'online', rows: (data && data.tables && data.tables[n]) || [] };
@@ -313,7 +359,7 @@ const STORE = (function () {
     m.__file_urls = Object.assign({}, (data && data.files) || {});
     m.__files = Object.keys(m.__file_urls).sort();
     memory = m; root = null; mode = 'online';
-    console.log('[store] online, view only: ' + CONFIG.tables.length + ' tables, ' + m.__files.length + ' files');
+    console.log('[store] online, ' + (onlineEdit ? 'editing' : 'view only') + ': ' + CONFIG.tables.length + ' tables, ' + m.__files.length + ' files');
   }
   /* pickSource() → { name, readAll(), listFiles(folder), fileBlob(path) } for a picked SOP App folder (read only), for Put this PC's
      data online; the mode stays as it is. A folder that is not there lists no file. */
@@ -347,6 +393,36 @@ const STORE = (function () {
         const i = rel.lastIndexOf('/');
         try { return await (await (await dir(rel.slice(0, i))).getFileHandle(rel.slice(i + 1))).getFile(); }
         catch (e) { fail('pickSource', rel + ' cannot be read (' + e.message + ')'); }
+      },
+      /* build 57: writeFile(name, text) → a file at the top of the folder (ARCHIVED.json on switch day); Chrome asks once to let the
+         page write there */
+      writeFile: async function (name, text) {
+        if (name.indexOf('/') >= 0) { fail('pickSource', name + ': only a file at the top of the folder'); }
+        let p = await h.queryPermission({ mode: 'readwrite' });
+        if (p !== 'granted') { p = await h.requestPermission({ mode: 'readwrite' }); }
+        if (p !== 'granted') { fail('pickSource', 'the page may not write into ' + h.name); }
+        const w = await (await h.getFileHandle(name, { create: true })).createWritable();
+        await w.write(text); await w.close();
+        return name;
+      }
+    };
+  }
+
+  /* build 57: pickTarget() → { name, write(rel, text or blob) }: an EMPTY folder the data online is saved into (the way back after switch
+     day); never a folder with files in it */
+  async function pickTarget() {
+    if (typeof window.showDirectoryPicker !== 'function') { fail('pickTarget', 'this browser has no folder picker. Use Chrome on the PC.'); }
+    const h = await window.showDirectoryPicker({ mode: 'readwrite' });
+    for await (const k of h.keys()) { fail('pickTarget', 'folder "' + h.name + '" is not empty (' + k + '): pick an empty folder; the data online never goes over files'); }
+    return {
+      name: h.name,
+      write: async function (rel, data) {
+        const parts = rel.split('/');
+        const name = parts.pop();
+        let d = h;
+        for (const part of parts) { if (part) { d = await d.getDirectoryHandle(part, { create: true }); } }
+        const w = await (await d.getFileHandle(name, { create: true })).createWritable();
+        await w.write(data); await w.close();
       }
     };
   }
@@ -354,6 +430,6 @@ const STORE = (function () {
   return { pickFolder: pickFolder, reopenFolder: reopenFolder, rememberedFolderName: rememberedFolderName,
     readTable: readTable, writeTable: writeTable, readAll: readAll, nextId: nextId, fileExists: fileExists,
     fileURL: fileURL, fileDataURL: fileDataURL, listFiles: listFiles, copyChart: copyChart, writePhoto: writePhoto, makeDir: makeDir, moveFile: moveFile,
-    useMemory: useMemory, status: status, canReadFiles: canReadFiles, useOnline: useOnline, pickSource: pickSource };
+    useMemory: useMemory, status: status, canReadFiles: canReadFiles, useOnline: useOnline, pickSource: pickSource, pickTarget: pickTarget, archiveInfo: archiveInfo, fileLinks: fileLinks };
 })();
 if (typeof module !== 'undefined') module.exports = STORE;

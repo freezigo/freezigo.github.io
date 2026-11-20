@@ -36,7 +36,7 @@ const APP_FINAL = (function () {
   }
   /* save(f, w) → the names moved to Old: the older PDFs move, then tab w (opened at the click) gets the floor copy named f.name */
   async function save(f, w) {
-    const moved = await moveOld(f.sop_id, f.name);
+    const moved = state.online ? [] : await moveOld(f.sop_id, f.name);   /* build 56: online there is no Final SOPs folder to tidy */
     const html = await APP_ACTIONS.floorHtml(f.rev === state.view.sop.current_rev ? null : f.rev, { title: f.name, auto_print: !state.noPrint });
     w.document.open(); w.document.write(html); w.document.close();
     console.log('[ui] final PDF ' + f.name + ': floor copy opened' + (state.noPrint ? '' : ' with the print window') + (moved.length ? '; moved to Old: ' + moved.join(', ') : ''));
@@ -48,7 +48,7 @@ const APP_FINAL = (function () {
     const slot = body.querySelector('#final-slot');
     const f = onFloor(state.view);
     if (!slot || !f) { return; }
-    if (state.viewOnly) { return; }   /* build 54: online, no Final PDF line: the final PDFs stay on Samrat's PC (Vishal 2026-11-17) */
+    if (state.online) { return; }   /* build 54: online, no Final PDF line: the final PDFs stay on Samrat's PC (Vishal 2026-11-17) */
     slot.innerHTML = RENDER_TABS.finalCard(Object.assign({ saved: await saved(f.name) }, f));
     $('btn-final-save').onclick = function () {
       const w = window.open('', '_blank');   /* at the click, so the browser lets the tab open */

@@ -7,9 +7,11 @@
    (spec/example_rights.md): promotePlan (a copy replaces the newest
    revision while it is not released, else it becomes the next one),
    promotedSince (copies made the good version after a copy was saved),
-   compareCopy against another copy of the same SOP. Pure.
+   compareCopy against another copy of the same SOP. Build 58
+   (spec/example_edit_online.md part 10): stepMarks (the red and blue
+   marks on a copy's steps), stepCompare (Compare for one step). Pure.
    Classic script (global ENGINE_COPIES); module in Node. Answer keys:
-   tests/golden20.js, golden28.js. */
+   tests/golden20.js, golden28.js, golden34.js. */
 const ENGINE_COPIES = (function () {
   const T = (typeof ENGINE_TEXT !== 'undefined') ? ENGINE_TEXT : require('./text.js');
   const E = (typeof ENGINE_EDIT !== 'undefined') ? ENGINE_EDIT : require('./edit.js');
@@ -208,6 +210,71 @@ const ENGINE_COPIES = (function () {
       others: [], rows: rows, counts: cmp.counts, retired_before: [] };
   }
 
+  /* ---- build 58 (example_edit_online.md part 10, Vishal 2026-11-20, "b"): the marks on the steps of a copy ---- */
+  /* family(t, cp) → { good, goodSteps (by Key, the good version's current revision), others: [{ sop, owner, steps (by Key) }] } */
+  function family(t, cp) {
+    const good = SEL.sopOf(t, cp.copy_of);
+    const byKey = list => { const o = {}; for (const s of list) { o[s.key] = s; } return o; };
+    const others = SEL.familyOf(t, good.sop_id).slice(1).filter(id => id !== cp.sop_id).map(function (id) {
+      const sop = SEL.sopOf(t, id);
+      return { sop: sop, owner: RT.ownerOf(t, id), steps: byKey(SEL.stepsOf(t, id, sop.current_rev)) };
+    });
+    return { good: good, goodSteps: byKey(SEL.stepsOf(t, good.sop_id, good.current_rev)), others: others };
+  }
+  /* behind(f, st) → the other copies that changed the step (theirs differs from the good version's, or the good version has none) and
+     differ from this copy's step: [{ sop_id, copy_name, owner, fields, step }], copy-number order */
+  function behind(f, st) {
+    const g = f.goodSteps[st.key] || null;
+    const out = [];
+    for (const o of f.others) {
+      const x = o.steps[st.key];
+      if (!x || (g && !CMP.differ(g, x).length)) { continue; }
+      const fields = CMP.differ(st, x);
+      if (fields.length) { out.push({ sop_id: o.sop.sop_id, copy_name: o.sop.copy_name, owner: o.owner, fields: fields, step: x }); }
+    }
+    return out;
+  }
+  /* stepMarks({ tables, sop_id }) → { good, count, marks: { Key: { red, red_new, red_fields, blue, blue_by: [{ sop_id, copy_name, owner,
+     fields }] } } }: the steps of the copy's revision that carry a mark; red = differs from the good version's current revision in the
+     fields Compare compares (red_fields), or a step the good version has not (red_new); blue = another copy changed the step and
+     differs from this one (blue_by, with the fields that differ from this copy) */
+  function stepMarks(input) {
+    if (!input || !input.tables) { fail('stepMarks', 'input.tables is missing'); }
+    const t = input.tables;
+    const cp = theCopy(t, input.sop_id, 'stepMarks');
+    const f = family(t, cp);
+    const marks = {};
+    for (const st of SEL.stepsOf(t, cp.sop_id, cp.current_rev)) {
+      const g = f.goodSteps[st.key] || null;
+      const redFields = g ? CMP.differ(g, st) : [];
+      const by = behind(f, st).map(b => ({ sop_id: b.sop_id, copy_name: b.copy_name, owner: b.owner, fields: b.fields }));
+      if (!g || redFields.length || by.length) {
+        marks[st.key] = { red: !g || redFields.length > 0, red_new: !g, red_fields: redFields, blue: by.length > 0, blue_by: by };
+      }
+    }
+    return { good: f.good.sop_id + ' ' + f.good.current_rev, count: Object.keys(marks).length, marks: marks };
+  }
+  /* stepCompare({ tables, sop_id, key }) → { key, step_no, columns: [{ sop_id, kind (this, good, copy), label, missing, step_no }], rows:
+     [{ field, label, values }] }: one step of the copy beside the good version's and the copies' behind its blue mark; rows = the
+     fields Compare compares whose text is not the same in every column; values as text, null where empty or missing */
+  function stepCompare(input) {
+    if (!input || !input.tables) { fail('stepCompare', 'input.tables is missing'); }
+    const t = input.tables;
+    const cp = theCopy(t, input.sop_id, 'stepCompare');
+    const mine = SEL.stepsOf(t, cp.sop_id, cp.current_rev).find(s => s.key === input.key);
+    if (!mine) { fail('stepCompare', input.key + ' is not a step of copy ' + cp.copy_name); }
+    const f = family(t, cp);
+    const g = f.goodSteps[mine.key] || null;
+    const cols = [{ sop_id: cp.sop_id, kind: 'this', label: 'This copy: ' + cp.copy_name, step: mine },
+      { sop_id: f.good.sop_id, kind: 'good', label: 'The good version: ' + f.good.sop_id + ' ' + f.good.current_rev, step: g }]
+      .concat(behind(f, mine).map(b => ({ sop_id: b.sop_id, kind: 'copy', label: 'Copy ' + b.copy_name + (b.owner ? ' (' + b.owner + ')' : ''), step: b.step })));
+    const text = (c, field) => (c.step ? E.asText(c.step[field]) : null);
+    const rows = CMP.COMPARED.filter(field => cols.some(c => text(c, field) !== text(cols[0], field)))
+      .map(field => ({ field: field, label: E.LABEL[field] || field, values: cols.map(c => text(c, field)) }));
+    return { key: mine.key, step_no: mine.step_no, rows: rows,
+      columns: cols.map(c => ({ sop_id: c.sop_id, kind: c.kind, label: c.label, missing: !c.step, step_no: c.step ? c.step.step_no : null })) };
+  }
+
   /* promoteCopy({ tables, sop_id, note, ctx }) → { refusals } or { refusals: null, sop_id, rev, kind, new_history, tables }: Make this the
      good version. kind next (build 39): the copy as the next revision of the good version (a Draft, prepared by ctx.who, the same
      Keys). kind replace (build 50, example_rights.md part 7): the newest revision is not released, so the copy goes in its place under
@@ -325,6 +392,7 @@ const ENGINE_COPIES = (function () {
     return { refusals: null, new_history: history, tables: tables };
   }
 
-  return { copyInfo, copiesOf, familyOrder, copyIdFor, saveCopy, compareCopy, promotePlan, promotedSince, promoteCopy, deleteCopy, isCopy, NAME_MAX, PER_REV };
+  return { copyInfo, copiesOf, familyOrder, copyIdFor, saveCopy, compareCopy, promotePlan, promotedSince, promoteCopy, deleteCopy, isCopy, stepMarks, stepCompare,
+    NAME_MAX, PER_REV };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_COPIES;

@@ -3,7 +3,8 @@
    the same fields, the contract's keys (meta: one row, id 1). dbTable, dbKey, sqlType, columnsOf, tableSql (the table), importRows
    (the rows as they go online: every field, sops with the owner), importSql (put a table online again, re-runnable). Pure: the SQL is
    text; tools/online_sql.js writes it and a session runs it. Classic script (global ENGINE_ONLINE); module in Node. Answer key:
-   tests/golden29.js. */
+   tests/golden29.js; build 52 to 54 tests/golden30.js; build 56 (editing online: saveChanges, editRights, saveLine, seenWhat)
+   tests/golden32.js. */
 const ENGINE_ONLINE = (function () {
   const TYPESX = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
   const RT = (typeof ENGINE_RIGHTS !== 'undefined') ? ENGINE_RIGHTS : require('./rights.js');
@@ -183,8 +184,9 @@ const ENGINE_ONLINE = (function () {
   }
   /* the folders whose files go online: the photos and the pictures. The final PDFs (Final SOPs, Final SOPs/Old) stay on the PC: not
      needed online (Vishal 2026-11-17, build 54); they are neither sent nor checked nor named in the result */
-  function fileDirs() { return [CFG().photos_dir, CFG().pictures_dir]; }
-  const FILE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf' };
+  /* build 57: also the pictures made from the 3D model (source/Pictures/ready, with ready.json) and the Planner charts of new SOPs */
+  function fileDirs() { return [CFG().photos_dir, CFG().pictures_dir, CFG().pictures_dir + '/ready', CFG().source_dir + '/chart']; }
+  const FILE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf', json: 'application/json' };
   /* the signs the file store (Supabase Storage) takes in a name: letters and digits of English, _ / ! - . * ' ( ) space & $ @ = ; : + , ? */
   const NAME_OK = /^(\w|\/|!|-|\.|\*|'|\(|\)| |&|\$|@|=|;|:|\+|,|\?)*$/;
   /* the most one file may weigh in the file store (config online.max_file_bytes: 20 MB, as the store's file_size_limit) */
@@ -198,7 +200,7 @@ const ENGINE_ONLINE = (function () {
       for (const p of listing[dir] || []) {
         const m = /\.([A-Za-z0-9]+)$/.exec(p);
         const type = m ? FILE_TYPES[m[1].toLowerCase()] : undefined;
-        if (!type) { skipped.push({ path: p, why: 'not a photo, picture or PDF' }); continue; }
+        if (!type) { skipped.push({ path: p, why: 'not a photo, picture, PDF or chart file' }); continue; }
         if (!NAME_OK.test(p)) { skipped.push({ path: p, why: 'a sign in the name the file store does not take: rename the file' }); continue; }
         if (sizes && typeof sizes[p] === 'number' && sizes[p] > MAX_FILE()) {
           skipped.push({ path: p, why: 'over ' + Math.round(MAX_FILE() / MB) + ' MB (' + (sizes[p] / MB).toFixed(1) + ' MB), the most the file store takes: stays on this PC' });
@@ -210,10 +212,151 @@ const ENGINE_ONLINE = (function () {
     const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
     return { files: files.sort(byPath), skipped: skipped.sort(byPath) };
   }
-  /* viewRights() → the rights on the view-only page: nothing changes; every view is locked with this line (app.js rightsOf) */
+  /* viewRights(line) → the rights on the view-only page: nothing changes; every view is locked with the line (app.js rightsOf): the
+     line of the login (build 56: "View only: Vishal reads the SOPs but does not change them."), else VIEW_LINE */
   const VIEW_LINE = 'View only: changes are made in the SOP Builder on Samrat\'s PC. Editing online comes later.';
-  function viewRights() { return { kind: 'view', owner: null, can_change: false, read_only: true, lock_text: VIEW_LINE, tag: 'View only' }; }
+  function viewRights(line) { return { kind: 'view', owner: null, can_change: false, read_only: true, lock_text: empty(line) ? VIEW_LINE : line, tag: 'View only' }; }
+
+  /* ---- build 56: editing online (spec/example_edit_online.md; answer key tests/golden32.js) ---- */
+  /* editRights(me, master) → { can_edit, line }: the page inside the Freezigo app edits for a login with the edit role once switch
+     day has come (sop_settings master = online); else view only, every view locked with line */
+  function editRights(me, master) {
+    if (master !== 'online') { return { can_edit: false, line: VIEW_LINE }; }
+    const roles = (me && Array.isArray(me.roles)) ? me.roles : [];
+    if (roles.indexOf('edit') < 0) { return { can_edit: false, line: 'View only: ' + ((me && me.name) || 'this login') + ' reads the SOPs but does not change them.' }; }
+    return { can_edit: true, line: null };
+  }
+  /* the lines of the database's sop_save (tools/online_sql.js editSql writes them into the SQL; {v} = the value) */
+  const SAVE_LINES = {
+    not_sop: 'Not saved: this login is not one of the SOP people.',
+    reads_only: 'Not saved: {v} reads the SOPs but does not change them.',
+    master: 'Not saved: changes are made in the SOP Builder on Samrat\'s PC until switch day.',
+    history_only: 'Not saved: History rows are only added, never changed or taken out.',
+    who: 'Not saved: every History row of a save carries the name of the login ({v}).',
+    unnamed: 'Not saved: the save changes {v} but none of its History rows names it.',
+    new_copy: 'Not saved: a new copy belongs to the login that saves it ({v}).',
+    owner_fixed: 'Not saved: the owner of copy {v} does not change.',
+    seen: 'Not saved: someone else changed {v} since this page loaded it. The page now shows the newest data: make the change again.',
+    shape: 'Not saved: the save is not in the form the database takes ({v}).',
+    /* build 57: switch day */
+    not_admin_switch: 'Not switched: only an admin switches.',
+    switch_value: 'Not switched: master is online or pc.',
+    switch_differs: 'Not switched: the tables online differ from this folder: put it online again.',
+    import_after_switch: 'Not saved: the SOPs are edited online since {v}: a PC\'s data would go over the changes made online. Switch back to the PC first.',
+    file_there: '{v} is there already: a photo is never written over.'
+  };
+  /* saveLine(kind, value) → the line of sop_save */
+  function saveLine(kind, value) {
+    if (!Object.prototype.hasOwnProperty.call(SAVE_LINES, kind)) { fail('saveLine', 'no line "' + kind + '"'); }
+    return SAVE_LINES[kind].replace('{v}', value === undefined || value === null ? '' : String(value));
+  }
+  /* seenWhat(table, row) → what the "someone else changed" line names: the SOP of the row, else the list it is in */
+  const LIST_NAMES = { glossary: 'the Glossary', gauges: 'the Gauges', defects: 'the Defects', routing: 'the Routing', meta: 'the SOP App details' };
+  function seenWhat(table, row) {
+    if (row && !empty(row.sop_id)) { return String(row.sop_id); }
+    return LIST_NAMES[table] || 'the ' + table.charAt(0).toUpperCase() + table.slice(1).replace(/_/g, ' ');
+  }
+  const noNulls = r => { const o = {}; for (const k of Object.keys(r)) { if (r[k] !== null && r[k] !== undefined) { o[k] = r[k]; } } return o; };
+  /* saveChanges(before, after) → { changes: [{ t, op, key, row, was }], order: { table: [keys] }, tables: [names] }: one save as it goes
+     to sop_save. Both are every table as the Builder keeps them; the rows are compared as they go online (importRows): insert = a
+     key the page did not have (row), update = same key, another row (row and was, the row before), delete = a key the page no longer
+     has (was); a row goes without its empty fields. The tables in the order of the contract; in a table the rows in the page's order,
+     the rows taken out last. order: the keys of a table in the page's order, where they changed (sop_save keeps the order of the rows
+     online). tables: the tables with a change or a new order. The same key twice in a table stops it */
+  function saveChanges(before, after) {
+    const b = payload(before), a = payload(after);
+    const changes = [], order = {}, tables = [];
+    for (const n of CFG().tables) {
+      const kf = dbKey(n);
+      const keyOf = r => kf.map(f => (r[f] === undefined ? null : r[f]));
+      const index = function (rows) {
+        const m = new Map();
+        for (const r of rows) {
+          const k = JSON.stringify(keyOf(r));
+          if (m.has(k)) { fail('saveChanges', n + ': the key ' + k + ' is there twice'); }
+          m.set(k, r);
+        }
+        return m;
+      };
+      const bi = index(b[n]), ai = index(a[n]);
+      const keyObj = r => { const o = {}; for (const f of kf) { o[f] = r[f]; } return o; };
+      const before0 = changes.length;
+      for (const [k, r] of ai) {
+        const o = bi.get(k);
+        if (!o) { changes.push({ t: n, op: 'insert', key: keyObj(r), row: noNulls(r) }); continue; }
+        if (dbRowText(o) !== dbRowText(r)) { changes.push({ t: n, op: 'update', key: keyObj(r), row: noNulls(r), was: noNulls(o) }); }
+      }
+      for (const [k, o] of bi) { if (!ai.has(k)) { changes.push({ t: n, op: 'delete', key: keyObj(o), was: noNulls(o) }); } }
+      let moved = false;
+      if (defOf(n, 'saveChanges').key.length) {
+        const bk = Array.from(bi.keys()), ak = Array.from(ai.keys());
+        moved = bk.length !== ak.length || bk.some((k, i) => k !== ak[i]);
+        if (moved) { order[n] = a[n].map(keyOf); }
+      }
+      if (changes.length > before0 || moved) { tables.push(n); }
+    }
+    return { changes: changes, order: order, tables: tables };
+  }
+
+  /* ---- build 57: files online and switch day (spec/example_edit_online.md part 9; answer key tests/golden33.js) ---- */
+  /* newFileJobs(local, online) → { files: [{ path, type, why }], same, skipped }: after switch day, a file of the PC's folders goes
+     online when it is not online (why new) or differs from the one online (why changed: another size, or another md5 where both are
+     known); a file only online stays; a file the store does not take stays on the PC (fileJobs). local and online = [{ path, size, md5 }] */
+  function newFileJobs(local, online) {
+    const dirs = fileDirs();
+    const there = {};
+    for (const f of online || []) { there[f.path] = f; }
+    const listing = {}, sizes = {};
+    for (const f of local || []) {
+      const dir = f.path.slice(0, f.path.lastIndexOf('/'));
+      if (dirs.indexOf(dir) < 0) { fail('newFileJobs', f.path + ' is not in a folder that goes online'); }
+      (listing[dir] = listing[dir] || []).push(f.path);
+      sizes[f.path] = f.size;
+    }
+    const jobs = fileJobs(listing, sizes);
+    const byPath = {};
+    for (const f of local || []) { byPath[f.path] = f; }
+    const files = [];
+    let same = 0;
+    for (const j of jobs.files) {
+      const l = byPath[j.path], o = there[j.path];
+      if (!o) { files.push({ path: j.path, type: j.type, why: 'new' }); continue; }
+      const differs = (typeof o.size === 'number' && typeof l.size === 'number' && o.size !== l.size) || (!empty(o.md5) && !empty(l.md5) && o.md5 !== l.md5);
+      if (differs) { files.push({ path: j.path, type: j.type, why: 'changed' }); } else { same++; }
+    }
+    return { files: files, same: same, skipped: jobs.skipped };
+  }
+  /* indiaDate(iso) → the day in India time (UTC+5:30), as the card writes it: 23 Nov 2026 */
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function indiaDate(iso) {
+    const t = Date.parse(String(iso).replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1').replace(/([+-]\d\d)$/, '$1:00'));
+    if (!isFinite(t)) { fail('indiaDate', JSON.stringify(iso) + ' is not a date and time'); }
+    const d = new Date(t + 330 * 60000);
+    return d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+  }
+  /* switchState(row) → { master, since, by, line }: the card of switch day, from the sop_settings row master (none before build 56) */
+  function switchState(row) {
+    if (!row || row.value === 'pc') { return { master: 'pc', since: null, by: null, line: null }; }
+    if (row.value !== 'online') { fail('switchState', 'master is ' + JSON.stringify(row.value) + ': online or pc'); }
+    const since = indiaDate(row.set_at);
+    return { master: 'online', since: since, by: row.set_by || null, line: 'SOPs are edited online since ' + since + (row.set_by ? ' (' + row.set_by + ')' : '') + '.' };
+  }
+  /* archiveNote(obj) → the line the SOP Builder on a PC shows for a folder with ARCHIVED.json (it only reads that folder) */
+  function archiveNote(obj) {
+    let when = '';
+    try { when = obj && obj.archived_at ? ' since ' + indiaDate(obj.archived_at) + (obj.by ? ' (' + obj.by + ')' : '') : ''; } catch (e) { when = ''; }
+    return 'Archive: SOPs are edited online' + when + '. The SOP Builder on this PC only reads this folder.';
+  }
+  /* archiveFile(nowIso, by) → { path, text }: the file the switch writes into the SOP App folder */
+  const ARCHIVE_FILE = 'ARCHIVED.json';
+  function archiveFile(nowIso, by) {
+    indiaDate(nowIso);
+    const o = { archived_at: nowIso, by: by, note: archiveNote({ archived_at: nowIso, by: by }), edit_online: 'Freezigo app, SOP Builder' };
+    return { path: ARCHIVE_FILE, text: JSON.stringify(o, null, 1) + '\n' };
+  }
+
   return { dbTable, dbKey, sqlType, columnsOf, tableSql, importRows, importSql, dbRowText, dbHashSql, fromOnline, inOrder, payload, hashDiff,
-    fileDirs, fileJobs, viewRights, PREFIX, VIEW_LINE };
+    fileDirs, fileJobs, viewRights, editRights, saveLine, seenWhat, saveChanges, newFileJobs, indiaDate, switchState, archiveNote, archiveFile,
+    PREFIX, VIEW_LINE, SAVE_LINES, ARCHIVE_FILE };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_ONLINE;

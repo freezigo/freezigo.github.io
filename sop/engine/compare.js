@@ -1,6 +1,7 @@
 /* SOP Builder logic pieces for revisions: compareByKey (two revisions'
-   step lists side by side, by key) and newRevision (the next revision
-   copied from the current one as a Draft). Pure. Classic script (global
+   step lists side by side, by key), newRevision (the next revision
+   copied from the current one as a Draft) and differ (build 58: the
+   fields of one step that differ, for the marks on a copy). Pure. Classic script (global
    ENGINE_COMPARE); module in Node. Answer key: tests/golden2.js (CB, NRV). */
 const ENGINE_COMPARE = (function () {
   const T = (typeof ENGINE_TEXT !== 'undefined') ? ENGINE_TEXT : require('./text.js');
@@ -12,6 +13,8 @@ const ENGINE_COMPARE = (function () {
   const copy = v => JSON.parse(JSON.stringify(v));
   const COMPARED = TYPESX.tables.steps.fields.map(f => f.name).filter(n => ['key', 'sop_id', 'rev', 'step_no', 'seq', 'class', 'signed_by'].indexOf(n) < 0);
   const bySeq = (a, b) => a.seq - b.seq;
+  /* differ(a, b) → the COMPARED fields whose text differs between two rows of the same step (build 58: the marks on a copy's steps) */
+  const differ = (a, b) => COMPARED.filter(f => E.asText(a[f]) !== E.asText(b[f]));
 
   /* compareByKey(oldSteps, newSteps, retiredRows) → { rows, counts }: rows in the new order, a retired row right after
      the row that preceded it in the old list; change = Kept, Kept (new step number), Changed, Changed (new step number), New, Retired */
@@ -29,7 +32,7 @@ const ENGINE_COMPARE = (function () {
     function rowFor(o, n) {
       const r = { key: (o || n).key, old_step_no: o ? o.step_no : null, new_step_no: n ? n.step_no : null, change: null, fields: [], old_action: o ? o.action : null, note: null };
       if (o && n) {
-        r.fields = COMPARED.filter(f => E.asText(o[f]) !== E.asText(n[f]));
+        r.fields = differ(o, n);
         const renumbered = o.step_no !== n.step_no;
         r.change = (r.fields.length ? 'Changed' : 'Kept') + (renumbered ? ' (new step number)' : '');
         counts[r.fields.length ? 'changed' : 'kept']++;
@@ -83,6 +86,6 @@ const ENGINE_COMPARE = (function () {
     return { sop: newSop, revision: newRev, steps: relabel(steps.slice().sort(bySeq)), sections: relabel(sections), extras: newExtras, revision_history_row: rh, history: history };
   }
 
-  return { compareByKey, newRevision };
+  return { compareByKey, newRevision, differ, COMPARED };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_COMPARE;

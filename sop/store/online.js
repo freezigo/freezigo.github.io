@@ -2,8 +2,10 @@
    is the ERP's: the page is on the ERP's website (freezigo.github.io/sop) and the Supabase client keeps the session under the name the
    ERP's client uses, so whoever is logged in to the Freezigo app is logged in here; this page never asks for a password.
    session, me (the SOP name and roles), loadAll (every table, in the order of the PC files, and a link to every file), putOnline (Put
-   this PC's data online: the tables in one call, then the files, then the check). The logic is in engine/online.js; this file only
-   moves data. Test seam: useClient(stand-in). Classic script (global ONLINE). */
+   this PC's data online: the tables in one call, then the files, then the check). Build 56 (spec/example_edit_online.md): master
+   (switch day come?), maxNo (the highest number online), loadTables (the newest tables), save (one save in one call, sop_save; the
+   database checks it and writes all or nothing). The logic is in engine/online.js; this file only moves data. Test seam:
+   useClient(stand-in). Classic script (global ONLINE). */
 const ONLINE = (function () {
   let client = null;
   function fail(place, msg) { throw new Error('online.' + place + ': ' + msg); }
@@ -64,15 +66,20 @@ const ONLINE = (function () {
     }
     return out;
   }
+  /* loadTables() → { tables }: every table as the Builder keeps it, rows in the order kept online (sop_row_order); the tables are
+     read at the same time (build 56: again after each save) */
+  async function loadTables() {
+    const order = {};
+    for (const r of await selectAll('sop_row_order')) { order[r.tbl] = r.keys; }
+    const rows = await Promise.all(CONFIG.tables.map(n => selectAll(ENGINE_ONLINE.dbTable(n))));
+    const tables = {};
+    CONFIG.tables.forEach(function (n, i) { tables[n] = ENGINE_ONLINE.inOrder(n, ENGINE_ONLINE.fromOnline(n, rows[i]), order[n]); });
+    return { tables: tables };
+  }
   /* loadAll() → { tables, files }: every table as the Builder keeps it, rows in the order of the PC files; files = { path: link for
      12 hours } */
   async function loadAll() {
-    const order = {};
-    for (const r of await selectAll('sop_row_order')) { order[r.tbl] = r.keys; }
-    const tables = {};
-    for (const n of CONFIG.tables) {
-      tables[n] = ENGINE_ONLINE.inOrder(n, ENGINE_ONLINE.fromOnline(n, await selectAll(ENGINE_ONLINE.dbTable(n))), order[n]);
-    }
+    const tables = (await loadTables()).tables;
     const files = {};
     const paths = (await listOnline()).map(f => f.path);
     for (let i = 0; i < paths.length; i += 100) {
@@ -151,6 +158,124 @@ const ONLINE = (function () {
     return { tables: CONFIG.tables.length, rows: rows, files: jobs.files.length, removed: extra.length, skipped: jobs.skipped, tableLines: tableLines, fileLines: fileLines };
   }
 
-  return { useClient, session, onSignedOut, me, loadAll, listOnline, putOnline, tableHash };
+  /* ---- build 56: editing online (spec/example_edit_online.md) ---- */
+  /* master() → 'pc' until switch day, then 'online' (sop_settings); a database without sop_settings yet (before build 56): 'pc' */
+  async function master() {
+    const r = await get().from('sop_settings').select('value').eq('key', 'master').maybeSingle();
+    if (r.error) { console.log('[online] sop_settings: ' + r.error.message + ': master = pc'); return 'pc'; }
+    return (r.data && r.data.value) || 'pc';
+  }
+  /* maxNo(table, field) → the highest number of a field online (0 when the table is empty): the next History, note, revision history
+     or floor trial number is taken from it at the moment of a change (STORE.nextId) */
+  async function maxNo(table, field) {
+    const r = await get().from(ENGINE_ONLINE.dbTable(table)).select(field).order(field, { ascending: false }).limit(1);
+    if (r.error) { fail('maxNo', table + '.' + field + ': ' + r.error.message); }
+    const v = r.data && r.data[0] ? Number(r.data[0][field]) : 0;
+    return isFinite(v) ? v : 0;
+  }
+  /* save(before, after) → { saved, by }: one save of the page (engine saveChanges: the rows added, changed and taken out, and the
+     order of the rows) in one call, sop_save; the database checks it (who, switch day, the rights of build 50, as seen) and writes all
+     of it or nothing. A refusal comes back as the database's line: "Not saved: ..." */
+  async function save(before, after) {
+    const s = ENGINE_ONLINE.saveChanges(before, after);
+    if (!s.tables.length) { return { saved: 0, by: null }; }
+    console.log('[online] save: ' + s.changes.length + ' rows (' + s.tables.join(', ') + ')');
+    const r = await get().rpc('sop_save', { p: { changes: s.changes, order: s.order } });
+    if (r.error) { throw new Error(r.error.message); }
+    return r.data;
+  }
+
+  /* ---- build 57: files online and switch day (spec/example_edit_online.md part 9) ---- */
+  /* masterRow() → the sop_settings row master ({ key, value, set_by, set_at }), or null (a database before build 56) */
+  async function masterRow() {
+    const r = await get().from('sop_settings').select('key, value, set_by, set_at').eq('key', 'master').maybeSingle();
+    if (r.error) { console.log('[online] sop_settings: ' + r.error.message); return null; }
+    return r.data || null;
+  }
+  /* putFile(path, blob) → a link to the file for 12 hours: an editor's photo, picture or chart file into the file store, never over a
+     file that is there (the database's rule allows the four folders after switch day) */
+  async function putFile(path, blob) {
+    const dir = path.slice(0, path.lastIndexOf('/'));
+    const j = ENGINE_ONLINE.fileJobs({ [dir]: [path] }, { [path]: blob.size });
+    if (!j.files.length) { fail('putFile', path + ': ' + (j.skipped[0] ? j.skipped[0].why : 'not taken')); }
+    const u = await get().storage.from(BUCKET()).upload(path, blob, { upsert: false, contentType: j.files[0].type });
+    if (u.error) {
+      if (/exist|duplicate/i.test(String(u.error.message)) || String(u.error.statusCode) === '409') { fail('putFile', ENGINE_ONLINE.saveLine('file_there', path.slice(path.lastIndexOf('/') + 1))); }
+      fail('putFile', path + ': not put online (' + u.error.message + ')');
+    }
+    const s = await get().storage.from(BUCKET()).createSignedUrls([path], 43200);
+    if (s.error || !s.data || !s.data[0]) { fail('putFile', path + ': online, but no link to it (' + (s.error ? s.error.message : 'none') + ')'); }
+    console.log('[online] file put online: ' + path + ' (' + blob.size + ' bytes)');
+    return s.data[0].signedUrl;
+  }
+  /* switchTo(to) → the master row after the switch (sop_switch, admin only): to = 'online' (switch day) or 'pc' (back) */
+  async function switchTo(to) {
+    const r = await get().rpc('sop_switch', { p_to: to });
+    if (r.error) { throw new Error(r.error.message); }
+    return r.data;
+  }
+  /* sameAsFolder(source) → [line]: the tables of the folder against the tables online (hash), empty when all the same */
+  async function sameAsFolder(source) {
+    const pl = ENGINE_ONLINE.payload(await source.readAll());
+    const local = {};
+    for (const n of CONFIG.tables) { local[n] = await tableHash(pl[n]); }
+    const r = await get().rpc('sop_table_hashes');
+    if (r.error) { fail('sameAsFolder', r.error.message); }
+    return ENGINE_ONLINE.hashDiff(local, r.data).map(x => x.line);
+  }
+  /* putNewFiles(source, say) → { put, same, skipped, lines }: after switch day, the folder's photos, pictures and chart files that are
+     not online, or differ from the one online (another size, or the same size and other bytes), go online; nothing online is taken out
+     and no table changes (admin) */
+  async function putNewFiles(source, say) {
+    const local = [], blobs = {};
+    for (const d of ENGINE_ONLINE.fileDirs()) {
+      for (const f of await source.listFiles(d)) { const b = await source.fileBlob(f); blobs[f] = b; local.push({ path: f, size: b.size, md5: null }); }
+    }
+    const online = await listOnline();
+    const jobs = ENGINE_ONLINE.newFileJobs(local, online.map(f => ({ path: f.path, size: f.size, md5: null })));
+    const sized = {};
+    for (const f of online) { sized[f.path] = f.size; }
+    const lines = [], put = jobs.files.slice();
+    let same = 0, n = 0;
+    for (const f of local) {
+      if (put.some(x => x.path === f.path) || sized[f.path] !== f.size || jobs.skipped.some(x => x.path === f.path)) { continue; }
+      n++;
+      say('Comparing files: ' + n + ' (' + f.path + ') …');
+      const d = await get().storage.from(BUCKET()).download(f.path);
+      if (!d.error && d.data && (await sameBytes(d.data, blobs[f.path]))) { same++; continue; }
+      put.push({ path: f.path, type: ENGINE_ONLINE.fileJobs({ x: [f.path] }).files[0].type, why: 'changed' });
+    }
+    n = 0;
+    for (const f of put) {
+      n++;
+      say('Files: ' + n + ' of ' + put.length + ' (' + f.path + ') …');
+      const u = await get().storage.from(BUCKET()).upload(f.path, blobs[f.path], { upsert: true, contentType: f.type });
+      if (u.error) { lines.push(f.path + ': not put online (' + u.error.message + ')'); continue; }
+      const d = await get().storage.from(BUCKET()).download(f.path);
+      if (d.error || !d.data || !(await sameBytes(d.data, blobs[f.path]))) { lines.push(f.path + ': the file online differs from this PC'); }
+    }
+    return { put: put.map(f => f.path + ' (' + f.why + ')'), same: same, skipped: jobs.skipped, lines: lines };
+  }
+  /* saveAsFolder(target, say, who, nowIso) → { tables, rows, files }: the way back after switch day: every table into data, as the
+     Builder writes it, and every file online into its folder, in an empty folder the SOP Builder on a PC can open */
+  async function saveAsFolder(target, say, who, nowIso) {
+    const tables = (await loadTables()).tables;
+    let rows = 0;
+    for (const f of ENGINE_BACKUP.backupFiles(tables, nowIso, who)) { say('Saving ' + f.path + ' …'); await target.write(f.path, f.text); }
+    for (const n of CONFIG.tables) { rows += tables[n].length; }
+    const files = await listOnline();
+    let n = 0;
+    for (const f of files) {
+      n++;
+      say('Files: ' + n + ' of ' + files.length + ' (' + f.path + ') …');
+      const d = await get().storage.from(BUCKET()).download(f.path);
+      if (d.error || !d.data) { fail('saveAsFolder', f.path + ' cannot be read online (' + (d.error ? d.error.message : 'empty') + ')'); }
+      await target.write(f.path, d.data);
+    }
+    return { tables: CONFIG.tables.length, rows: rows, files: files.length };
+  }
+
+  return { useClient, session, onSignedOut, me, loadTables, loadAll, listOnline, putOnline, tableHash, master, maxNo, save,
+    masterRow, putFile, switchTo, sameAsFolder, putNewFiles, saveAsFolder };
 })();
 if (typeof module !== 'undefined') module.exports = ONLINE;

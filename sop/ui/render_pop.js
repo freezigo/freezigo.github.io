@@ -96,5 +96,42 @@ const RENDER_POP = (function () {
       '<div class="refusal" id="pic-refusal"></div><div class="pop-btns"><button id="btn-pic-close">Close</button></div></div></div>';
   }
 
-  return { reasonPop, askPop, renumberPop, fixesPop, thumbs, viewer, picturePop };
+  /* ---- build 58 (example_edit_online.md part 10): the marks on a copy's step card and Compare for that step ---- */
+  const fieldWords = fields => fields.map(f => (ENGINE_EDIT.LABEL[f] || f)).join(', ');
+  /* markTitles(m, good) → { red, blue }: the words under the pointer; m = one entry of ENGINE_COPIES.stepMarks(...).marks */
+  function markTitles(m, good) {
+    const red = !m.red ? null : (m.red_new ? 'A new step: not in the good version ' + good + '.' : 'Differs from the good version ' + good + ': ' + fieldWords(m.red_fields) + '.');
+    const blue = !m.blue ? null : m.blue_by.map(b => 'Changed in copy ' + b.copy_name + (b.owner ? ' (' + b.owner + ')' : '') + '; differs from this copy in ' + fieldWords(b.fields) + '.').join(' ');
+    return { red: red, blue: blue };
+  }
+  /* marks(key, m, good): the small marks at the bottom right of a step card, red left of blue; a click opens Compare */
+  function marks(key, m, good) {
+    const tt = markTitles(m, good);
+    const one = (kind, words) => '<button class="mark mark-' + kind + '" data-key="' + esc(key) + '" title="' + esc(words + ' Click to compare this step.') + '" aria-label="' + esc(words) + '"></button>';
+    return '<span class="step-marks" data-key="' + esc(key) + '">' + (tt.red ? one('red', tt.red) : '') + (tt.blue ? one('blue', tt.blue) : '') + '</span>';
+  }
+  /* stepComparePop(c): c = ENGINE_COPIES.stepCompare(...); one column per version, one row per field that is not the same everywhere; a
+     value of this copy that differs from the good version's is tinted red, a value of another copy that differs from this copy's blue */
+  function stepComparePop(c) {
+    const cell = v => (v === null ? '<span class="empty">(empty)</span>' : esc(v));
+    let h = '<div class="pop-back" id="pop-back"><div class="pop pop-wide" id="stepcmp-pop" role="dialog" aria-modal="true" aria-labelledby="stepcmp-what">' +
+      '<div class="pop-title">Compare</div><div class="pop-what" id="stepcmp-what">Compare step ' + esc(c.step_no) + ' (' + esc(c.key) + ')</div>';
+    if (!c.rows.length) {
+      h += '<p class="muted" id="stepcmp-same">Nothing differs here from the good version' + (c.columns.length > 2 ? ' or the other copies' : '') + '.</p>';
+    } else {
+      h += '<table class="grid stepcmp" id="stepcmp-table"><tr><th>Field</th>' + c.columns.map(col => '<th class="col-' + esc(col.kind) + '">' + esc(col.label) +
+        '<br><span class="muted">' + (col.missing ? 'not in this version' : 'step ' + esc(col.step_no)) + '</span></th>').join('') + '</tr>';
+      for (const r of c.rows) {
+        h += '<tr data-field="' + esc(r.field) + '"><th>' + esc(r.label) + '</th>' + c.columns.map(function (col, i) {
+          if (col.missing) { return '<td class="missing"><span class="empty">not in this version</span></td>'; }
+          const tint = (col.kind === 'this' && !c.columns[1].missing && r.values[0] !== r.values[1]) ? ' diff-red' : (col.kind === 'copy' && r.values[i] !== r.values[0] ? ' diff-blue' : '');
+          return '<td class="v' + tint + '">' + cell(r.values[i]) + '</td>';
+        }).join('') + '</tr>';
+      }
+      h += '</table>';
+    }
+    return h + '<div class="note">Only shows; nothing is saved. Step numbers and order are not compared.</div><div class="pop-btns"><button id="btn-stepcmp-close">Close</button></div></div></div>';
+  }
+
+  return { reasonPop, askPop, renumberPop, fixesPop, thumbs, viewer, picturePop, markTitles, marks, stepComparePop };
 })();

@@ -72,7 +72,7 @@ const APP_ACTIONS = (function () {
     let line = null;
     if (f && w) {
       const moved = await APP_FINAL.save(f, w);
-      line = 'Released. The floor copy is open in a new tab: save it as ' + f.name + '.pdf in Final SOPs (Chrome\'s print window, Save as PDF).' +
+      line = 'Released. The floor copy is open in a new tab: save it as ' + f.name + '.pdf ' + (state.online ? 'where you keep the final PDFs' : 'in Final SOPs') + ' (Chrome\'s print window, Save as PDF).' +
         (moved.length ? ' Moved to Final SOPs\\Old: ' + moved.join(', ') + '.' : '');
     } else if (f) { line = 'Released. The browser blocked the new tab: allow pop-ups for this page, then click Save the final PDF on the Floor PDF tab.'; }
     else if (w) { w.close(); }

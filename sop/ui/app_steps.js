@@ -105,6 +105,8 @@ const APP_STEPS = (function () {
     /* a right-click on a row of the card edits only that row (part 20, build 35) */
     APP_FIELD.wire(area, { lockText: sv.locked ? sv.lock_text : null, cardOf: k => (k === st.key ? st : null), openFull: k => openStepForm(k),
       done: async (r, ctx, k, row) => { await afterRenumber(r, ctx, 'saveStep'); APP_FIELD.reveal(k, row); } });
+    /* build 58: the marks of a copy's step (spec/example_edit_online.md part 10) */
+    APP_MARKS.draw(area, state.tables, sopId());
   }
   /* the edit form of Builder step 7 replaces the card; Save redraws with the same section and step */
   function openStepForm(key) {

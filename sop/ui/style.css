@@ -414,7 +414,25 @@ tr.field-edit-row > th { color: var(--note-text); }
 body.view-only #btn-save-copy, body.view-only #btn-quick-copy, body.view-only #btn-header-edit, body.view-only #btn-sec-edit, body.view-only #btn-sec-add-after, body.view-only #btn-sec-retire, body.view-only #btn-sec-renumber, body.view-only #btn-add-section, body.view-only #btn-step-add, body.view-only #btn-step-insert, body.view-only #btn-step-first, body.view-only #btn-step-sub, body.view-only #btn-step-up, body.view-only #btn-step-down, body.view-only #btn-step-retire, body.view-only #btn-revise, body.view-only #btn-new-rev, body.view-only #btn-release, body.view-only #btn-sign-checked, body.view-only #btn-sign-approved, body.view-only #btn-walk, body.view-only #btn-final-save, body.view-only #btn-copy-promote, body.view-only #btn-copy-delete, body.view-only #btn-club, body.view-only #btn-add-note, body.view-only #btn-add-menu, body.view-only #btn-draw-arrow, body.view-only #btn-remove-arrow, body.view-only #btn-kick-make, body.view-only #btn-blank-make, body.view-only #btn-pick, body.view-only #btn-open, body.view-only #btn-give-save, body.view-only #btn-fixes-ok, body.view-only #btn-pic-use, body.view-only #btn-pic-file-add, body.view-only #btn-copy-compare-save, body.view-only #btn-nf-save, body.view-only #btn-split-now, body.view-only #btn-renum-ok, body.view-only #btn-ip-insert, body.view-only #btn-as-add, body.view-only #btn-sync-later, body.view-only .btn-add, body.view-only .btn-edit, body.view-only .btn-split, body.view-only .btn-move, body.view-only .btn-photo-add, body.view-only .btn-photo-del, body.view-only .btn-pic-add, body.view-only .btn-pic-del, body.view-only .btn-row-edit, body.view-only .btn-row-add, body.view-only .btn-row-remove, body.view-only .btn-note-edit, body.view-only .btn-note-del, body.view-only .list-add, body.view-only .tc-save, body.view-only .btn-give, body.view-only .edit-card, body.view-only .addmenu, body.view-only .add-menu, body.view-only .copy-save { display: none !important; }
 #topbar .erp-back { font-weight: 600; text-decoration: none; margin-right: 6px; }
 #topbar .view-tag { background: #fff3cd; color: #6b4e00; border: 1px solid #e6c766; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+/* build 56 (spec/example_edit_online.md): the page that edits online; photos and picture files are added online from build 57 */
+#topbar .edit-tag { background: #e3f4e5; color: #1d5b26; border: 1px solid #8cc596; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+/* build 57: photos and pictures are added online too (the file store); the archive tag of a PC folder after switch day */
+.online-card .switch-line { margin: 6px 0; }
+.online-card .online-actions button { margin: 4px 6px 4px 0; }
+.online-card .warn { color: #8a3b00; }
 #topbar .who { font-weight: 600; }
 .online-card .online-out { margin-top: 6px; }
 .online-card .ok { color: #1b6e2a; }
 .online-card .err { color: #a31515; }
+/* build 58: the marks on the steps of a copy and Compare for one step (spec/example_edit_online.md part 10) */
+.step-card { position: relative; }
+.step-card.has-marks { padding-bottom: 22px; }
+.step-marks { position: absolute; right: 9px; bottom: 7px; display: flex; gap: 6px; }
+button.mark { width: 11px; height: 11px; min-width: 0; padding: 0; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.5); cursor: pointer; }
+button.mark-red, button.mark-red:hover { background: var(--red); }
+button.mark-blue, button.mark-blue:hover { background: var(--blue); }
+button.mark:hover, button.mark:focus-visible { transform: scale(1.35); border-color: #fff; }
+table.stepcmp th { text-align: left; vertical-align: top; }
+table.stepcmp td.v { white-space: pre-wrap; vertical-align: top; }
+table.stepcmp td.diff-red { background: rgba(240, 96, 93, 0.16); box-shadow: inset 3px 0 0 var(--red); }
+table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: inset 3px 0 0 var(--blue); }
