@@ -53,9 +53,13 @@ const RENDER_KICK = (function () {
   /* draftPart(k): build 60 (spec/example_draft_file.md part 6): the draft file a chat made with the fixed prompt, what the reader found
      in it (k.read: refusals, or the line, the target and the warnings), the copy name when it becomes a copy, Bring it in */
   function draftPart(k) {
-    let h = '<div class="f"><label>1 Draft file</label><div class="v"><input type="file" id="kick-draft" accept=".json,application/json"> ' +
+    /* build 61: the prompt from the Builder, for any AI chat */
+    let h = '<div class="f"><label>The prompt</label><div class="v"><button id="btn-prompt-copy">Copy the prompt</button> <button id="btn-prompt-save">Save the prompt as a file</button>' +
+      '<div class="note">Paste the prompt in a new chat of any AI (Claude, ChatGPT, Gemini) and attach all you have on the SOP: PDFs, a flow chart, drawings, photos, notes. ' +
+      'The chat gives two files: a PDF to read and a .json file for step 1. Example: "Make the draft of BMC-L1-ALUCOIL-01 from the attached files."</div><div id="prompt-done">' + (k.prompt_done ? '<div class="given-note">' + esc(k.prompt_done) + '</div>' : '') + '</div></div></div>';
+    h += '<div class="f"><label>1 Draft file</label><div class="v"><input type="file" id="kick-draft" accept=".json,application/json"> ' +
       (k.draft_name ? '<span class="muted">' + esc(k.draft_name) + '</span>' : '') +
-      note('The .json file a chat made with the prompt file "Freezigo SOP draft prompt v1.md" (in any Claude account), or one saved on a Floor PDF tab. The PDF the same chat made is for reading', 'BMC-L1-ALUCOIL-01 draft.json') + ref('file') + '</div></div>';
+      note('The .json file the chat made with the prompt, or one saved on a Floor PDF tab. The PDF the same chat made is for reading', 'BMC-L1-ALUCOIL-01 draft.json') + ref('file') + '</div></div>';
     const rd = k.read;
     if (!rd) { return h; }
     h += '<div class="f"><label>2 What it holds</label><div class="v">';

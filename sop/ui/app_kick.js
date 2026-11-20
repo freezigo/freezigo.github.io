@@ -17,7 +17,7 @@ const APP_KICK = (function () {
   const state = APP.state;
   const $ = APP.el, main = APP.main, guard = APP.guard, nowIso = APP.nowIso, writeTables = APP.writeTables;
   const kick = () => (state.kick = state.kick || { type: 'main', proc: {}, start: 'blank', chart: null, text: null, file_name: null, groups: null, group: null, unticked: [], plan: null, sop_choice: 'list', sop_id: null,
-    new_sop: {}, reason: '', kept: null, draft: null, draft_name: null, read: null, copy_name: '' });
+    new_sop: {}, reason: '', kept: null, draft: null, draft_name: null, read: null, copy_name: '', prompt_done: null });
 
   function listed() { return state.sopListRows.filter(r => !r.current_rev); }
   /* firstDraft(sopId) → the SOP to open after a start: the starter's copy "First draft" (build 50), or the SOP itself in the test seam
@@ -105,8 +105,37 @@ const APP_KICK = (function () {
       r.onerror = () => { throw new Error('ui readDraft: ' + f.name + ' cannot be read'); };
       r.readAsText(f);
     };
+    $('btn-prompt-copy').onclick = () => guard('ui copyPrompt', () => givePrompt('copy'));
+    $('btn-prompt-save').onclick = () => guard('ui savePrompt', () => givePrompt('save'));
     if ($('kd-name')) { $('kd-name').oninput = e => { k.copy_name = e.target.value; }; }
     if ($('btn-draft-make')) { $('btn-draft-make').onclick = () => guard('ui importDraft', bringDraft); }
+  }
+  /* givePrompt(how): build 61: the fixed prompt made now (the skill of prompt/skill.js, the fields, the Glossary and the example of the
+     tables), copied for a paste into any AI chat, or saved as a file in Downloads */
+  async function givePrompt(how) {
+    const k = kick();
+    const p = ENGINE_PROMPT.makePrompt({ skill: PROMPT_SKILL.text, skillDate: PROMPT_SKILL.date, tables: state.tables, today: nowIso().slice(0, 10), build: CONFIG.builder_build });
+    const words = ENGINE_PROMPT.PROMPT_NAME + ' (' + p.text.length + ' characters, ' + state.tables.glossary.length + ' Glossary terms)';
+    if (how === 'save') {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([p.text], { type: 'text/markdown' }));
+      a.download = ENGINE_PROMPT.PROMPT_FILE;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      k.prompt_done = 'Saved ' + ENGINE_PROMPT.PROMPT_FILE + ' in your Downloads folder: ' + words + '. Attach it in the chat with your files.';
+    } else {
+      let ok = false;
+      try { await navigator.clipboard.writeText(p.text); ok = true; } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = p.text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+        ta.remove();
+      }
+      k.prompt_done = ok ? 'Copied: ' + words + '. Paste it in a new AI chat and attach your files.' : 'The browser did not let the page copy. Use Save the prompt as a file.';
+    }
+    console.log('[ui] prompt ' + how + ': ' + words);
+    if ($('prompt-done')) { $('prompt-done').innerHTML = '<div class="given-note">' + RENDER.esc(k.prompt_done) + '</div>'; }
   }
   /* readDraftFile(name, text): the reader's checks; nothing is written */
   function readDraftFile(name, text) {
