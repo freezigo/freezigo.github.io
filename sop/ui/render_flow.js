@@ -22,7 +22,9 @@ const RENDER_FLOW = (function () {
     for (const l of b.lines) { inner += l.k === 'icons' ? '<div class="lic">' + RENDER_ICONS.counts(l.icons) + '</div>' : '<div class="' + (CLASS[l.k] || 'lx') + '">' + esc(l.t) + '</div>'; }
     if (b.kind === 'input') { inner += '<div class="l2 muted">input from another SOP</div>'; }
     if (!locked && (b.kind === 'section' || b.kind === 'input')) { inner += '<span class="fdot" data-dot="' + esc(b.id) + '" title="Drag onto another box to draw a Needs arrow"></span>'; }
-    return '<div class="fbox kind-' + esc(b.kind) + (b.band ? ' band-' + esc(b.band) : '') + (sel === b.id ? ' selected' : '') + '" data-id="' + esc(b.id) + '" data-kind="' + esc(b.kind) + '">' + inner + '</div>';
+    /* build 65: the Input and Output boxes say what a click does */
+    const tip = b.kind === 'io' ? ' title="Click: ' + (b.id === 'output' ? 'Output to' : 'Input from') + ' on the Header tab"' : '';
+    return '<div class="fbox kind-' + esc(b.kind) + (b.band ? ' band-' + esc(b.band) : '') + (sel === b.id ? ' selected' : '') + '" data-id="' + esc(b.id) + '" data-kind="' + esc(b.kind) + '"' + tip + '>' + inner + '</div>';
   }
   /* a note: drag it by any part but its buttons; it stays with its box, step or arrow (parts 14 and 18.3) */
   function noteHtml(n, locked, readOnly) {

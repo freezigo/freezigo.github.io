@@ -153,7 +153,7 @@ const RENDER = (function () {
     /* build 39: a copy shows the This copy card first */
     let h = (view.rev && view.copy ? thisCopyCard(view) + '<div id="sync-slot"></div>' : '') +
       '<h2>Header' + (canEdit ? ' <button id="btn-header-edit">Edit the header</button>' : '') + '</h2>' +
-      (view.rev && view.rights && !view.rights.can_change ? '<p class="ok rights-line" id="rights-line">' + esc(view.lock_text) + '</p>' : '') + '<div id="header-slot"></div>' + kvTable(kv);
+      (view.rev && view.rights && !view.rights.can_change ? '<p class="ok rights-line" id="rights-line">' + esc(view.lock_text) + '</p>' : '') + '<div id="header-slot"></div>' + kvTable(kv, true);
     if (view.rev) {
       h += '<h2>Revision ' + esc(rev.rev) + '</h2>' + kvTable([['Revision date', rev.rev_date], ['Purpose', rev.purpose], ['Scope', rev.scope],
         ['Process flow', rev.process_flow], ['Reference drawings', rev.reference_drawings], ['How to use', rev.how_to_use],

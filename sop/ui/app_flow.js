@@ -261,8 +261,21 @@ const APP_FLOW = (function () {
     if (u.mode === 'arrow-to' && chart === 'sections') { const from = u.arrowFrom; setMode(null); if (kind === 'io') { return; } return arrow(from, id, 'add'); }
     if (u.mode === 'note') { setMode(null); return APP_NOTES.openNoteForm({ pin: 'box', pin_ref: id, label: boxLabel(id, kind) }, chart); }
     if (chart === 'steps') { return selectStep(id); }
-    if (kind === 'io' || kind === 'input') { return; }
+    /* build 65 (Vishal 21 Nov: "why cant i click on input"): the Input and Output boxes open their field of the Header tab */
+    if (kind === 'io') { return headerField(id === 'output' ? 'output_to' : 'input_from'); }
+    if (kind === 'input') { return; }
     return selectSection(id);
+  }
+  /* headerField(field): the Header tab; where the header can be changed, the header form open with the field ready to type; else the
+     field's row of the Header table marked (build 65, spec/example_flow.md part 22) */
+  async function headerField(field) {
+    const label = field === 'output_to' ? 'Output to' : 'Input from';
+    await APP.showTab('header');
+    if ($('btn-header-edit') && !$('header-form') && !$('row-form')) { $('btn-header-edit').click(); }
+    const el = document.querySelector('#hd-form [name="' + field + '"]');
+    if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); log('ui', 'header form at ' + field); return; }
+    const row = document.querySelector('table.kv tr[data-row="' + label + '"]');
+    if (row) { row.classList.add('row-mark'); row.scrollIntoView({ block: 'center' }); log('ui', 'header row ' + label + ' marked'); }
   }
   /* select a section box (its steps in the middle) or a step box (its card on the right); the menus and the double-click use them too */
   async function selectSection(id) {

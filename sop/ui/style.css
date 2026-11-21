@@ -452,3 +452,5 @@ table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: i
 .kick .draft-warn { margin-top: 4px; }
 .kick .draft-warn summary { cursor: pointer; color: var(--amber); }
 .draft-save { margin-top: 14px; }
+/* build 65: the Header row a click on the Flow tab's Input or Output box points to */
+.kv tr.row-mark > th, .kv tr.row-mark > td { background: var(--accent-bg); outline: 2px solid var(--accent); }
