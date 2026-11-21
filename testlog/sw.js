@@ -1,5 +1,5 @@
 /* Keeps the app working without internet. Change BUILD when the app files change. */
-var BUILD = 16, CACHE = 'testlog-b' + BUILD;
+var BUILD = 17, CACHE = 'testlog-b' + BUILD;
 var SHELL = ['./', 'index.html', 'desk.html', 'config.js', 'css/app.css', 'js/core.js', 'js/alarm.js', 'js/torch.js', 'js/phone.js', 'js/desk.js', 'js/import.js', 'vendor/exceljs.min.js', 'vendor/supabase.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 // A NEW BUILD IS DOWNLOADED WHOLE, AND FRESH (build 6).

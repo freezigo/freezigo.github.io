@@ -2,7 +2,7 @@
    Build 15 (ERP web w117), 16 (w120: same app also on the old address, which the alarm app opens): inside the Freezigo ERP (Data Log > Tests). Data in the ERP database, sign-in with the ERP login. */
 (function () {
   'use strict';
-  var BUILD = 16;
+  var BUILD = 17;
   var OFFLINE_DAYS = 7;
   var cfg = window.TESTLOG_CONFIG || {};
 
