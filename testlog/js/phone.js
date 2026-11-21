@@ -530,7 +530,7 @@
   function alarmPanel() {
     var a = T.alarm.info, url = new URL('testlog-alarm.apk', location.href).href;
     var link = function (label) { return '<a class="btn second" href="testlog-alarm.apk" download>' + icon('download') + label + '</a>'; };
-    if (!a.present) return '<div class="banner warn">' + icon('timer') + '<span><b>Alarm app is not on this phone</b></span></div>' + link('Download alarm app');
+    if (!a.present) return '<div class="banner warn">' + icon('timer') + '<span><b>No alarm here</b><br>The alarm rings only in the Test Log alarm app. Install it once, then open Test Log from its icon: same login, same tests.</span></div>' + link('Download alarm app');
     var p = a.perms || {}, rows = [['notifications', 'Show notifications'], ['exactAlarm', 'Ring at the exact time'], ['fullScreen', 'Show over the lock screen'], ['batteryExempt', 'Run when the phone saves battery']];
     var missing = rows.filter(function (r) { return p[r[0]] === false; }), old = a.shellBuild < T.alarm.LATEST_SHELL;
     var h = '<div class="between"><span class="row" style="font-weight:700">' + icon(old ? 'warn' : 'check', 20) + 'Alarm app</span><span class="chip' + (old ? ' mark' : '') + '">shell build ' + a.shellBuild + (old ? ' · new: ' + T.alarm.LATEST_SHELL : '') + '</span></div>';
