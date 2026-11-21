@@ -454,3 +454,7 @@ table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: i
 .draft-save { margin-top: 14px; }
 /* build 65: the Header row a click on the Flow tab's Input or Output box points to */
 .kv tr.row-mark > th, .kv tr.row-mark > td { background: var(--accent-bg); outline: 2px solid var(--accent); }
+/* build 66: the Status box of an SOP or copy with open notes goes orange (spec/example_notes_list.md part 3) */
+table.grid td:has(> .st-notes) { background: #ea580c; }
+.st-notes { background: #ea580c; color: #fff; }
+.st-notes-n { font-weight: 600; white-space: nowrap; }

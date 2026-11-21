@@ -117,6 +117,8 @@ const APP_FLOW = (function () {
       $('btn-draw-arrow').onclick = () => { shut(); guard('ui drawArrow', () => setMode(u.mode === 'arrow-from' ? null : 'arrow-from')); };
       $('btn-add-note').onclick = () => { shut(); guard('ui addNote', () => setMode(u.mode === 'note' ? null : 'note')); };
     }
+    /* build 66: another person's copy: the bar holds only ✎ Add a note */
+    if ($('btn-add-note') && !$('btn-add-menu')) { $('btn-add-note').onclick = () => guard('ui addNote', () => setMode(u.mode === 'note' ? null : 'note')); }
     if ($('btn-remove-arrow')) { $('btn-remove-arrow').onclick = () => guard('ui removeArrow', removeArrow); }
     $('tab-body').onclick = e => {
       const b = e.target.closest('button');

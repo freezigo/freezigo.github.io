@@ -52,10 +52,14 @@ const APP = (function () {
     return state.rightsMode === 'open' || !state.tables ? null : ENGINE_RIGHTS.rightsOf(state.tables, sopId, state.editor);
   }
   /* lockOn(v, sopId): a view of an SOP the name at the top does not change is locked with the line of its rights, as a released
-     revision is; read_only = someone else's copy (no note buttons either) */
+     revision is; read_only = someone else's copy (since build 66 its notes: notes_ok, the login's name in me) */
   function lockOn(v, sopId) {
     const r = rightsOf(sopId);
-    if (r && !r.can_change) { v.locked = true; v.lock_text = r.lock_text; v.read_only = r.read_only; }
+    if (r && !r.can_change) {
+      v.locked = true; v.lock_text = r.lock_text; v.read_only = r.read_only;
+      /* build 66 (spec/example_notes_list.md): in another person's copy a login who edits adds notes and changes their own */
+      v.notes_ok = r.kind === 'other copy' && !state.viewOnly; v.me = state.editor;
+    }
     return v;
   }
 

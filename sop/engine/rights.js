@@ -30,7 +30,7 @@ const ENGINE_RIGHTS = (function () {
   }
 
   /* rightsOf(tables, sopId, who) → { kind, owner, can_change, read_only, lock_text, tag }: kind good (nobody changes it directly), own
-     copy, other copy (read only, notes too), or copy (owner not known: anyone changes it) */
+     copy, other copy (read only; build 66: but its notes, noteOk), or copy (owner not known: anyone changes it) */
   function rightsOf(tables, sopId, who) {
     const sop = SEL.sopOf(tables, sopId);
     if (!isCopy(sop)) { return { kind: 'good', owner: null, can_change: false, read_only: false, lock_text: goodLine(sop.sop_id), tag: 'Good version: change it through a copy' }; }
@@ -46,6 +46,16 @@ const ENGINE_RIGHTS = (function () {
     if (r.table === 'sop_revisions') { return SIGN_FIELDS.indexOf(r.field) >= 0 || /^accepted item \d+$/.test(String(r.field)); }
     if (r.table === 'chart_notes') { return r.field === 'status' && NOTE_STATES.indexOf(r.old_value) >= 0 && NOTE_STATES.indexOf(r.new_value) >= 0; }
     return false;
+  }
+  /* build 66 (spec/example_notes_list.md part 1): a note in another person's copy: anyone adds one, turns one Done or Open again;
+     the writer changes or deletes their own; nothing else there */
+  function noteOk(tables, r, who) {
+    if (r.table !== 'chart_notes') { return false; }
+    if (r.field === 'status' && NOTE_STATES.indexOf(r.old_value) >= 0 && NOTE_STATES.indexOf(r.new_value) >= 0) { return true; }
+    if (r.field === 'row' && empty(r.old_value) && /^added: /.test(String(r.new_value || ''))) { return true; }
+    const m = /^(\d+) (.+)$/.exec(String(r.row_id || ''));
+    const note = m ? (tables.chart_notes || []).find(n => String(n.note_id) === m[1] && n.rev === m[2] && n.sop_id === r.sop_id) : null;
+    return !!note && norm(note.written_by) === norm(who);
   }
   const PROMOTED = /^removed: copy .*, now (Rev \d+) of (.+)$/;
 
@@ -81,7 +91,7 @@ const ENGINE_RIGHTS = (function () {
       if (!sop || empty(sop.current_rev)) { continue; }   /* a new SOP: its first revision */
       if (isCopy(sop)) {
         const rt = rightsOf(tables, id, who);
-        if (!rt.can_change) { say(rt.lock_text); }
+        if (!rt.can_change && !noteOk(tables, r, who)) { say(rt.lock_text); }
         continue;
       }
       if (!goodOk(r)) { say(goodLine(id)); }

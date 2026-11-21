@@ -27,13 +27,23 @@ const RENDER_FLOW = (function () {
     return '<div class="fbox kind-' + esc(b.kind) + (b.band ? ' band-' + esc(b.band) : '') + (sel === b.id ? ' selected' : '') + '" data-id="' + esc(b.id) + '" data-kind="' + esc(b.kind) + '"' + tip + '>' + inner + '</div>';
   }
   /* a note: drag it by any part but its buttons; it stays with its box, step or arrow (parts 14 and 18.3) */
-  function noteHtml(n, locked, readOnly) {
+  /* build 66 (spec/example_notes_list.md part 2): a note in another person's copy: Done or Open again on every note, Edit and ✕ on
+     one's own, the fold button on all */
+  function otherCopyButtons(n, v) {
+    const done = n.status === 'Done', id = esc(n.note_id);
+    const mine = String(n.written_by || '').trim().toLowerCase() === String(v.me || '').trim().toLowerCase();
+    return '<div class="nbtn"><button class="btn-note-' + (done ? 'reopen' : 'done') + '" data-note="' + id + '">' + (done ? 'Open again' : 'Done') + '</button> ' +
+      (mine && !done ? '<button class="btn-note-edit" data-note="' + id + '">Edit</button> ' : '') +
+      '<button class="btn-note-min" data-note="' + id + '" title="Minimise: fold into a small tag">–</button>' +
+      (mine ? ' <button class="btn-note-del" data-note="' + id + '" title="Delete note">✕</button>' : '') + '</div>';
+  }
+  function noteHtml(n, locked, readOnly, v) {
     const done = n.status === 'Done', id = esc(n.note_id);
     return '<div class="fnote' + (done ? ' done' : '') + (locked ? '' : ' movable') + '" data-note="' + id + '" title="' + (locked ? '' : 'Drag the note to move it') + '">' +
       '<div class="nhead">✎ ' + id + ' <span class="muted">' + esc(n.written_by) + ' ' + esc(String(n.written_at).slice(0, 10)) + (done ? ' · Done ' + esc(n.closed_by) + ' ' + esc(String(n.closed_at).slice(0, 10)) : '') + '</span></div>' +
       '<div class="ntext" title="' + esc(n.text) + '">' + esc(n.text) + '</div>' +
       /* build 50: someone else's copy: no button (example_rights.md part 6.7) */
-      (readOnly ? '' :
+      (readOnly ? (v && v.notes_ok ? otherCopyButtons(n, v) : '') :
       /* a Released revision: Done or Open again only (build 31) */
       locked ? '<div class="nbtn"><button class="btn-note-' + (done ? 'reopen' : 'done') + '" data-note="' + id + '">' + (done ? 'Open again' : 'Done') + '</button></div>' :
         '<div class="nbtn"><button class="btn-note-' + (done ? 'reopen' : 'done') + '" data-note="' + id + '">' + (done ? 'Open again' : 'Done') + '</button> ' +
@@ -46,7 +56,7 @@ const RENDER_FLOW = (function () {
     let h = '';
     for (const n of v.notes) {
       const p = v.note_layout.notes[n.note_id];
-      if (p) { h += p.min ? fo(p, tagHtml(n), 'fo-note fo-tag') : fo(p, noteHtml(n, v.locked, v.read_only), 'fo-note'); }
+      if (p) { h += p.min ? fo(p, tagHtml(n), 'fo-note fo-tag') : fo(p, noteHtml(n, v.locked, v.read_only, v), 'fo-note'); }
     }
     return h;
   }
@@ -98,7 +108,12 @@ const RENDER_FLOW = (function () {
     const big = '<button id="btn-big"' + (ui.big ? ' class="active"' : '') + '>' + (ui.big ? 'Exit big view' : '⛶ Big view') + '</button>';
     const seg = '<span class="seg" id="boxes-switch">Boxes: <button id="btn-boxes-short"' + (v.boxes === 'short' ? ' class="on"' : '') + '>Short</button><button id="btn-boxes-full"' + (v.boxes === 'full' ? ' class="on"' : '') + '>Full</button></span>';
     const help = howTo('howto-big');
-    if (v.locked) { return '<div class="flow-bar" id="flow-bar">' + help + '<span class="ok">' + esc(v.lock_text) + '</span> ' + seg + ' ' + big + '</div>'; }
+    /* build 66: another person's copy keeps its line and offers ✎ Add a note (spec/example_notes_list.md part 2) */
+    if (v.locked) {
+      return '<div class="flow-bar" id="flow-bar">' + help + '<span class="ok">' + esc(v.lock_text) + '</span> ' +
+        (v.notes_ok ? '<button id="btn-add-note"' + (ui.mode === 'note' ? ' class="active"' : '') + '>✎ Add a note</button> ' : '') + seg + ' ' + big +
+        (v.notes_ok ? '<div class="flow-mode muted" id="flow-mode">' + esc(ui.modeText || '') + '</div><div class="refusal" id="flow-refusal"></div>' : '') + '</div>';
+    }
     /* the ＋ Add menu holds the three old buttons (part 17.4) */
     const add = '<span class="addmenu"><button id="btn-add-menu" aria-haspopup="true">＋ Add ▾</button><div class="ctx-menu add-menu" id="add-menu" hidden>' +
       '<button class="ctx-item" id="btn-add-section">Add a section at the end</button><button class="ctx-item" id="btn-draw-arrow">Draw a Needs arrow</button>' +
@@ -202,7 +217,7 @@ const RENDER_FLOW = (function () {
   }
   function looseNotes(v) {
     if (!v.loose_notes.length) { return ''; }
-    return '<div class="card loose" id="flow-loose"><b>Loose notes</b> <span class="muted">their box or arrow is gone</span>' + v.loose_notes.map(n => noteHtml(n, v.locked, v.read_only)).join('') + '</div>';
+    return '<div class="card loose" id="flow-loose"><b>Loose notes</b> <span class="muted">their box or arrow is gone</span>' + v.loose_notes.map(n => noteHtml(n, v.locked, v.read_only, v)).join('') + '</div>';
   }
   /* textsList(list): the texts to check (part 18.1); list = ENGINE_CHART.textsToCheck(...) */
   const FIELD = { needs_note: 'Needs note', ends_with: 'Ends with', max_wait: 'Max wait', restart_step: 'Restart step', manpower: 'Manpower', action: 'Action', why: 'Why',

@@ -89,7 +89,9 @@ const ENGINE = (function () {
         steps_count: sop.current_rev ? SEL.stepCount(SEL.stepsOf(t, sop.sop_id, sop.current_rev)).steps : 0,
         release: rel ? rel.label : null, fail_count: rel ? rel.check.fail_count : null, main_changes: waiting(t, sop),
         /* build 50: the owner of a copy (who saved it), shown on its row */
-        owner: CP.isCopy(sop) ? RT.ownerOf(t, sop.sop_id) : null });
+        owner: CP.isCopy(sop) ? RT.ownerOf(t, sop.sop_id) : null,
+        /* build 66 (spec/example_notes_list.md part 3): the open notes of its current revision, shown in the Status box */
+        open_notes: sop.current_rev ? NO.notesCount(t.chart_notes || [], sop.sop_id, sop.current_rev, 'sections', null).open : 0 });
     });
     const goods = t.sops.filter(s => !CP.isCopy(s));
     return { meta: t.meta[0], rows: rows, by_status: SEL.countBy(goods, 'status'), copies: t.sops.length - goods.length };

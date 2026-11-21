@@ -11,6 +11,7 @@ const ENGINE_DRAFT = (function () {
   const R = (typeof ENGINE_RELEASE !== 'undefined') ? ENGINE_RELEASE : require('./release.js');
   const SEL = (typeof ENGINE_SELECT !== 'undefined') ? ENGINE_SELECT : require('./select.js');
   const CP = (typeof ENGINE_COPIES !== 'undefined') ? ENGINE_COPIES : require('./copies.js');
+  const NO = (typeof ENGINE_NOTES !== 'undefined') ? ENGINE_NOTES : require('./notes.js');
   const TYPESX = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
   const SETSX = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
   function fail(place, msg) { throw new Error('engine.' + place + ': ' + msg); }
@@ -33,8 +34,11 @@ const ENGINE_DRAFT = (function () {
     tools: ['no', 'type', 'name', 'used_at'],
     worked_examples: ['we_id', 'step_text', 'what', 'how', 'decide', 'example'],
     ref_tables: ['table_id', 'title', 'columns', 'rows'],
-    values_needed: ['step_text', 'value_needed', 'unit', 'owner', 'blocks_release']
+    values_needed: ['step_text', 'value_needed', 'unit', 'owner', 'blocks_release'],
+    /* build 67 (spec/example_draft_notes.md): open notes on the Flow chart, each on the box of its section */
+    notes: ['section', 'step', 'text']
   };
+  const NOTE_MAX = 300;
   /* the contract table of each part, and the fields of that table the Builder gives itself (never read from a file) */
   const TABLE = { sop: 'sops', revision: 'sop_revisions', sections: 'sections', steps: 'steps', safety_items: 'safety_items', materials: 'materials', tools: 'tools',
     worked_examples: 'worked_examples', ref_tables: 'ref_tables', values_needed: 'values_needed' };
@@ -44,7 +48,7 @@ const ENGINE_DRAFT = (function () {
     safety_items: ['sop_id', 'rev'], materials: ['sop_id', 'rev'], tools: ['sop_id', 'rev'], worked_examples: ['sop_id', 'rev'], ref_tables: ['sop_id', 'rev'],
     values_needed: ['vn_id', 'no', 'sop_id', 'value', 'date_given', 'sign'] };
   const LISTS = ['safety_items', 'materials', 'tools', 'worked_examples', 'ref_tables'];
-  const TOP = ['format', 'version', 'prompt', 'made_on', 'made_by', 'source', 'sop', 'revision', 'sections', 'steps'].concat(LISTS, ['values_needed']);
+  const TOP = ['format', 'version', 'prompt', 'made_on', 'made_by', 'source', 'sop', 'revision', 'sections', 'steps'].concat(LISTS, ['values_needed', 'notes']);
   /* the field that numbers a list row, and the words of a list in a line */
   const LIST_ID = { safety_items: 'no', materials: 'sr', tools: 'no', worked_examples: 'we_id', ref_tables: 'table_id' };
   const LIST_WORDS = { safety_items: ['safety item', 'safety items'], materials: ['material', 'materials'], tools: ['tool', 'tools'],
@@ -275,6 +279,35 @@ const ENGINE_DRAFT = (function () {
       if (!isObj(row)) { out.refuse('values_needed', 'Values Needed row ' + (i + 1) + ' is not a row of fields.'); return; }
       vn.push(fields('values_needed', row, 'Values Needed ' + (i + 1) + ': ', ['step_text', 'value_needed', 'owner', 'blocks_release'], out));
     });
+    /* build 67 (spec/example_draft_notes.md part 1): the notes, each with its section (given, or the section of its step) */
+    const notes = [];
+    if (d.notes !== undefined && d.notes !== null) {
+      if (!Array.isArray(d.notes)) { out.refuse('notes', 'notes must be a list.'); }
+      else {
+        const secOfStep = {};
+        for (const s of steps) { if (!empty(s.step_no)) { secOfStep[String(s.step_no).trim()] = s.section; } }
+        d.notes.forEach(function (row, i) {
+          const place = 'Note ' + (i + 1) + ': ';
+          if (!isObj(row)) { out.refuse('notes', 'Note row ' + (i + 1) + ' is not a row of fields.'); return; }
+          for (const k of Object.keys(row)) { if (PARTS.notes.indexOf(k) < 0) { out.warn(place + k + ' is not a field of a note: left out.'); } }
+          const text = empty(row.text) ? '' : String(row.text).trim();
+          if (!text) { out.refuse('notes', place + 'Text is empty.'); return; }
+          if (text.length > NOTE_MAX) { out.refuse('notes', place + 'a note has ' + NOTE_MAX + ' characters at most (this one has ' + text.length + ').'); return; }
+          if (typeof row.step === 'number') { out.refuse('notes', place + 'the step number must be text in quotes ("' + row.step + '").'); return; }
+          const step = empty(row.step) ? null : String(row.step).trim();
+          let sec = empty(row.section) ? null : asNumber(row.section);
+          if (sec !== null && !Number.isInteger(sec)) { out.refuse('notes', place + 'section must be a whole number.'); return; }
+          if (sec === null && step === null) { out.refuse('notes', place + 'give its section (a box on the Flow chart) or its step.'); return; }
+          if (step !== null) {
+            if (secOfStep[step] === undefined) { out.refuse('notes', place + 'step ' + step + ' is not in the steps.'); return; }
+            if (sec !== null && secOfStep[step] !== sec) { out.refuse('notes', place + 'step ' + step + ' is in section ' + secOfStep[step] + ', not section ' + sec + '.'); return; }
+            sec = secOfStep[step];
+          }
+          if (!seenSec[sec]) { out.refuse('notes', place + 'section ' + sec + ' is not in the sections.'); return; }
+          notes.push({ section: sec, step: step, text: text });
+        });
+      }
+    }
     if (refusals.length) { return { refusals: refusals }; }
 
     /* warned: the Builder's step rules, the Gujarati line, Values Needed */
@@ -299,15 +332,17 @@ const ENGINE_DRAFT = (function () {
     const counts = { sections: sections.length, steps: steps.length };
     for (const name of LISTS) { counts[name] = lists[name].length; }
     counts.values_needed = vn.length;
+    counts.notes = notes.length;
     const line = [id, plural(counts.sections, 'section'), plural(counts.steps, 'step')]
-      .concat(LISTS.filter(n => counts[n] > 0).map(n => plural(counts[n], LIST_WORDS[n][0], LIST_WORDS[n][1])), [counts.values_needed + ' Values Needed']).join(' · ');
+      .concat(LISTS.filter(n => counts[n] > 0).map(n => plural(counts[n], LIST_WORDS[n][0], LIST_WORDS[n][1])), [counts.values_needed + ' Values Needed'],
+        counts.notes ? [plural(counts.notes, 'note')] : []).join(' · ');
     const tl = target.kind === 'new' ? 'A new SOP ' + id + ': the file becomes its Rev 01, then your own copy First draft opens.'
       : (target.kind === 'listed' ? id + ' is on the SOP list with no revision: the file becomes its Rev 01, then your own copy First draft opens.'
         : id + ' has ' + target.rev + ': the file becomes your own copy of it, and its Compare tab shows every difference.');
     const made = { prompt: empty(d.prompt) ? null : String(d.prompt), made_on: empty(d.made_on) ? null : String(d.made_on), made_by: empty(d.made_by) ? null : String(d.made_by),
       source: empty(d.source) ? null : String(d.source) };
     return { refusals: null, target: { kind: target.kind, sop_id: id, rev: target.rev, line: tl }, sop: target.sop, revision: revision, sections: sections, steps: steps,
-      lists: lists, values_needed: vn, counts: counts, line: line, made: made, warnings: warnings };
+      lists: lists, values_needed: vn, notes: notes, counts: counts, line: line, made: made, warnings: warnings };
   }
 
   /* readDraft(draft, tables) → { refusals } or { refusals: null, target: { kind, sop_id, rev, line }, counts, line, made, warnings } */
@@ -377,6 +412,25 @@ const ENGINE_DRAFT = (function () {
     return p.sections.map(function (s) { const row = {}; for (const f of names) { row[f] = null; } return Object.assign(row, s, { sop_id: sopId, rev: rev, source_ref: refOf ? refOf(s.section) : null }); });
   }
 
+  /* build 67 (spec/example_draft_notes.md part 2): the notes of the file on the Flow chart of sopId's rev, Open, by the person who brings the
+     file in, numbered from first; each with its History row → { rows, history, line } */
+  function noteRows(p, sopId, rev, sectionNos, first, ctx, after) {
+    if (!p.notes.length) { return { rows: [], history: after, line: null }; }
+    if (!Number.isInteger(first)) { fail('importDraft', 'ctx.next_note_id (the next note number) is missing'); }
+    const refs = { boxes: sectionNos.map(String).concat(['input', 'output']), arrows: [] };
+    const rows = [];
+    let hist = after;
+    p.notes.forEach(function (n, i) {
+      const r = NO.addNote({ sop_id: sopId, rev: rev, chart: 'sections', section: null, pin: 'box', pin_ref: String(n.section), text: n.text }, refs, Object.assign({}, ctx, { next_note_id: first + i }));
+      if (r.refusals) { fail('importDraft', 'note ' + (i + 1) + ': ' + r.refusals.map(x => x.message).join(' ')); }
+      rows.push(r.note);
+      hist = hist.concat(r.history.map((h, j) => Object.assign({}, h, { hist_id: (hist.length ? hist[hist.length - 1].hist_id : ctx.next_hist_id - 1) + 1 + j })));
+    });
+    const boxes = [];
+    for (const r of rows) { if (boxes.indexOf(r.pin_ref) < 0) { boxes.push(r.pin_ref); } }
+    return { rows: rows, history: hist, line: 'Notes: ' + plural(rows.length, 'open note') + ' on the Flow chart (box ' + boxes.join(', box ') + ').' };
+  }
+
   /* importDraft({ tables, draft, ctx, copy_name }) → { refusals } or { refusals: null, kind, sop_id, report, warnings, new_history, tables }:
      ctx needs who, now, next_hist_id, reason; next_rh_id (a new SOP or an SOP on the list), next_vn_no (Values Needed rows to add),
      next_note_id (a copy of a revision with open notes) */
@@ -433,8 +487,12 @@ const ENGINE_DRAFT = (function () {
       : H('sops', id, null, before, sop, SOP_KEEP.map(f => f[0]).concat(['status', 'current_rev', 'edited_in']), hist);
     for (const v of vn) { hist = added('values_needed', v.vn_id, null, v.vn_id + ' ' + v.value_needed, hist); }
     hist = added('revision_history', String(rh.rh_id), rev, summary, hist);
+    const nt = noteRows(p, id, rev, sections.map(s => s.section), ctx.next_note_id, ctx, hist);
+    hist = nt.history;
+    if (nt.line) { lines.push(nt.line); }
     const tables = { sops: SEL.mergeRows(t.sops, [sop], ['sop_id']), sop_revisions: t.sop_revisions.concat([revision]), sections: t.sections.concat(sections),
       steps: t.steps.concat(steps), values_needed: (t.values_needed || []).concat(vn), revision_history: (t.revision_history || []).concat([rh]), history: t.history.concat(hist) };
+    if (nt.rows.length) { tables.chart_notes = (t.chart_notes || []).concat(nt.rows); }
     for (const name of LISTS) { tables[name] = (t[name] || []).concat(lists[name]); }
     return { refusals: null, kind: p.target.kind, sop_id: id, report: lines, warnings: p.warnings, new_history: hist, tables: tables };
   }
@@ -520,6 +578,12 @@ const ENGINE_DRAFT = (function () {
     const H = (table, rowId, sopId, rev2, old, nw, flds, after) => E.historyRows({ table: table, row_id: rowId, sop_id: sopId, rev: rev2, old: old, new: nw, fields: flds, ctx: ctx, after: after });
     let hist = H('sops', cid, cid, null, { row: null }, { row: 'draft file: ' + lines[0] + ' ' + lines[1] }, ['row'], sc.new_history);
     for (const r of v.rows) { hist = H('values_needed', r.vn_id, cid, null, { row: null }, { row: 'added: ' + r.vn_id + ' ' + r.value_needed }, ['row'], hist); }
+    /* build 67: the file's notes on the copy, after the open notes it carries from its good version */
+    const carried = (st.chart_notes || []).length - (t.chart_notes || []).length;
+    const nt = noteRows(p, cid, rev, sections.map(s => s.section), Number.isInteger(ctx.next_note_id) ? ctx.next_note_id + carried : null, ctx, hist);
+    hist = nt.history;
+    if (nt.line) { lines.push(nt.line); }
+    if (nt.rows.length) { tables.chart_notes = (st.chart_notes || []).concat(nt.rows); }
     tables.history = t.history.concat(hist);
     return { refusals: null, kind: 'copy', sop_id: cid, report: lines, warnings: p.warnings, new_history: hist, tables: tables };
   }

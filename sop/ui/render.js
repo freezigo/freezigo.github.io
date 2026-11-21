@@ -88,6 +88,8 @@ const RENDER = (function () {
         }
         if (f === 'release') { return r.release === null ? '<span class="empty">(no revision)</span>' : esc(r.release); }
         if (f === 'steps_count') { return r.current_rev ? esc(r.steps_count) : ''; }
+        /* build 66 (spec/example_notes_list.md part 3): open notes turn the Status box orange */
+        if (f === 'status' && r.open_notes) { return '<div class="st-notes">' + show(r.status) + '<div class="st-notes-n">' + esc(r.open_notes) + (r.open_notes === 1 ? ' note open' : ' notes open') + '</div></div>'; }
         return show(r[f]);
       });
     return h;

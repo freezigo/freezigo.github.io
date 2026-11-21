@@ -9,7 +9,7 @@ const ENGINE_PROMPT = (function () {
 const TYPES_ = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
 const SETS_ = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
 const DR = (typeof ENGINE_DRAFT !== 'undefined') ? ENGINE_DRAFT : require('./draft.js');
-const PROMPT_NAME = 'Freezigo SOP draft prompt v4';
+const PROMPT_NAME = 'Freezigo SOP draft prompt v5';
 const FILE_NAME = PROMPT_NAME + '.md';
 const EXAMPLE_SOP = 'BMC-L1-TANK-01';
 const EXAMPLE_BY = 'AI chat for Divyal Patel';
@@ -118,7 +118,7 @@ function skeleton() {
   const row = part => '{ ' + DR.PARTS[part].map(f => '"' + f + '": …').join(', ') + ' }';
   const lines = ['{', '  "format": "' + DR.FORMAT + '", "version": ' + DR.VERSION + ', "prompt": "' + PROMPT_NAME + '",', '  "made_on": "2026-11-21", "made_by": "' + EXAMPLE_BY + '", "source": "' + EXAMPLE_SOURCE + '",',
     '  "sop": ' + row('sop') + ',', '  "revision": ' + row('revision') + ','];
-  for (const part of ['sections', 'steps', 'safety_items', 'materials', 'tools', 'worked_examples', 'ref_tables', 'values_needed']) { lines.push('  "' + part + '": [ ' + row(part) + ', … ]' + (part === 'values_needed' ? '' : ',')); }
+  for (const part of ['sections', 'steps', 'safety_items', 'materials', 'tools', 'worked_examples', 'ref_tables', 'values_needed', 'notes']) { lines.push('  "' + part + '": [ ' + row(part) + ', … ]' + (part === 'notes' ? '' : ',')); }
   lines.push('}');
   return lines.join('\n');
 }
@@ -198,6 +198,7 @@ const RULES = `## 5. The Builder's rules for the data file
 16. A field with no value: null. A field that is not in part 6: leave it out (the Builder leaves out unknown fields, with a warning).
 17. A step that follows a Process SOP comes in as a plain step; the Builder links it again.
 18. Pictures and photos are not in the data file. Photo ref: only the photo file names the source gives.
+19. Holds and the serial number: keep them as the source has them, even where part 4 wants something else (part 4: a hold after the test weld, the leak test and the final check; the serial number at the incoming check, before any work). For each place where the source and part 4 differ, write a note (the notes part): the step, what the source does, and what part 4 wants. Example: { "section": 7, "step": "7.11", "text": "7.11: no hold after the test weld. The SOP rules put a supervisor hold here." }. Do the same for any other rule of part 4 that you keep as the source has it. The SOP Builder puts every note on the Flow chart, open, on the box of its section, for the editors to decide.
 `;
 
 const PDF = `## 8. The PDF (the floor copy layout)
@@ -211,7 +212,7 @@ Make the PDF from the data file, in the floor copy layout of part 4 (Floor copy)
 5. Section 1 Safety and PPE (table P-1: No, Item, Who, Used at, Status). Section 2 Materials (table M-1) and Tools and machines (table T-1).
 6. Each process section: its number and name with the Gujarati name under it; Needs, Ends with, Restart step, Manpower, Est min.
 7. Each step: the step number; the English action with the Gujarati line under it; a warning in a box before the step; the Check with its target (Min to Max Unit) and If NOT OK; HOLD H1 on a hold; a tick box. A missing value shows [VALUE NEEDED: Divyal] in red.
-8. After the sections: the worked examples, the reference tables, then the Values Needed list.
+8. After the sections: the worked examples, the reference tables, the Values Needed list, then the notes (rule 19).
 9. The last page: the record sheet: one row per section, a blank for each reading, the signer on each row, a handover line.
 10. Render every page to a picture and look at it before you hand the PDF over: no cut text, no broken Gujarati letters, no empty page.
 `;
@@ -229,7 +230,8 @@ The SOP Builder's reader refuses the whole file (nothing comes in) when:
 - a step of a section comes after a later section;
 - there is a section 1 or 2 row, a section twice, no section or no step;
 - Hold is not "N" or "H1", "H2";
-- a list row number is there twice.
+- a list row number is there twice;
+- a note has no text or more than 300 characters, has neither section nor step, names a section or a step that is not in the file, or names a step of another section.
 
 It brings the file in and warns (fix what you can) when:
 
@@ -249,12 +251,13 @@ Check yourself too (the reader does not):
 - every Reading names its gauge from part 7.2, or has a values_needed row for it;
 - a step done once per piece has the number of pieces as its Repeat count;
 - the safety list holds PPE and safety items only; every warning sits in the Warning of its steps;
-- every section has a Restart step and a Max wait (part 6.2).
+- every section has a Restart step and a Max wait (part 6.2);
+- every place where you keep the source as written although part 4 wants something else has a note (rule 19): holds, the serial number, and the rest.
 
 Then hand over:
 
 1. The two files: \`<SOP ID> draft.json\` and \`<SOP ID> draft.pdf\`.
-2. A short list: sections, steps, holds and readings (counts); the values_needed rows; every guess with how sure you are (%); New Glossary words; questions for Divyal, numbered, with an example answer.
+2. A short list: sections, steps, holds and readings (counts); the values_needed rows; the notes; every guess with how sure you are (%); New Glossary words; questions for Divyal, numbered, with an example answer.
 `;
 
 /* makePrompt({ skill, tables, today, skillDate }) → the prompt text */
@@ -270,8 +273,14 @@ function makePrompt(input) {
     '- format and version: always "' + DR.FORMAT + '" and ' + DR.VERSION + '.', '- prompt: always "' + PROMPT_NAME + '".',
     '- made_on: the day you make the file (2026-11-21); made_by: who asked for it ("' + EXAMPLE_BY + '"); source: the source files ("' + EXAMPLE_SOURCE + '").', ''];
   for (const part of Object.keys(PART_TABLE)) { p6.push('- ' + part + ': ' + PART_WORDS[part] + '.'); }
+  p6.push('- notes: open notes for the editors, each on the box of its section on the Flow chart: where you keep the source as written although part 4 wants something else (rule 19).');
   p6.push('', '### 6.2 Every field', '', 'Must fill: "yes" = the reader refuses the file when the field is empty; the other words say what an empty field becomes. Every other field may be null.');
   for (const part of Object.keys(PART_TABLE)) { p6.push('', '#### ' + part, '', fieldTable(part)); }
+  /* build 67 (spec/example_draft_notes.md): the notes part has no table of its own in the contract */
+  p6.push('', '#### notes', '', '| Field | Kind | Must fill | Note | Example |', '|---|---|---|---|---|',
+    '| section | whole number | yes, unless step is given | The box on the Flow chart the note sits on: the section number. | 7 |',
+    '| step | text | no | The step the note is about, as text; its section when section is empty. | "7.11" |',
+    '| text | text | yes | What the source does and what part 4 wants; 300 characters at most; start with the step number. | "7.11: no hold after the test weld. The SOP rules put a supervisor hold here." |');
   p6.push('', '### 6.3 Allowed values (exact spelling)', '');
   const used = {};
   for (const part of Object.keys(PART_TABLE)) {
