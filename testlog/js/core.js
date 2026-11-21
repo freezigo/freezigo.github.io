@@ -2,7 +2,7 @@
    Build 15 (ERP web w117), 16 (w120: same app also on the old address, which the alarm app opens): inside the Freezigo ERP (Data Log > Tests). Data in the ERP database, sign-in with the ERP login. */
 (function () {
   'use strict';
-  var BUILD = 17;
+  var BUILD = 18;
   var OFFLINE_DAYS = 7;
   var cfg = window.TESTLOG_CONFIG || {};
 
@@ -169,9 +169,9 @@
         if (/fetch|network/i.test(r.error.message || '')) throw Object.assign(new Error('No connection to the server.'), { network: true });
         throw Object.assign(new Error(r.error.message === 'Invalid login credentials' ? 'Wrong email or password (your ERP login).' : r.error.message), { code: 401 });
       }
-      var tok = r.data.session.access_token;
-      c.auth.signOut({ scope: 'local' }).catch(function () {});
-      return tok;
+      // Build 18: no signOut here. Even with scope 'local' it ends the session on the server, and the server then refuses
+      // this token ("Your ERP sign-in has run out"). The client keeps nothing (persistSession off), so there is nothing to clear.
+      return r.data.session.access_token;
     }, function () { throw Object.assign(new Error('No connection to the server.'), { network: true }); });
   }
   /** The ERP login already on this browser, if any: { email, token }. */
