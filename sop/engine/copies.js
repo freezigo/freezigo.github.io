@@ -281,6 +281,14 @@ const ENGINE_COPIES = (function () {
      the same number; its sign-offs are cleared; the draft's open notes from before the copy was saved are marked Deleted. Either way
      one revision history row more, and the copy's rows are removed; ctx needs next_rh_id */
   const REV_FIELDS = TYPESX.tables.sop_revisions.fields.map(f => f.name).filter(n => n !== 'sop_id' && n !== 'rev');
+  /* vnOfSop(tables, sopId) → the Values Needed rows the SOP shows: its own; a copy: the good version's under the copy's SOP ID (so they link to
+     its steps) and, since build 64, the copy's own rows (from its draft file: example_draft_file.md part 12) */
+  function vnOfSop(tables, sopId) {
+    const sop = SEL.sopOf(tables, sopId), rows = tables.values_needed || [];
+    if (!isCopy(sop)) { return rows.filter(v => v.sop_id === sop.sop_id); }
+    return rows.filter(v => v.sop_id === sop.copy_of).map(v => Object.assign({}, v, { sop_id: sop.sop_id })).concat(rows.filter(v => v.sop_id === sop.sop_id));
+  }
+
   function promoteCopy(input) {
     need(input, ['tables', 'sop_id', 'note', 'ctx'], 'promoteCopy');
     const t = input.tables, ctx = input.ctx;
@@ -354,6 +362,14 @@ const ENGINE_COPIES = (function () {
     for (const d of deleted) {
       history = E.historyRows({ table: 'chart_notes', row_id: d.old.note_id + ' ' + d.old.rev, sop_id: good.sop_id, rev: rev, old: d.old, new: d.new, fields: ['status'], ctx: ctx2, after: history });
     }
+    /* build 64: the copy's own Values Needed rows (from its draft file) go to the good version */
+    const ownVn = (t.values_needed || []).filter(isCp);
+    if (ownVn.length) {
+      tables.values_needed = t.values_needed.map(v => (isCp(v) ? Object.assign(copy(v), { sop_id: good.sop_id }) : v));
+      for (const v of ownVn) {
+        history = E.historyRows({ table: 'values_needed', row_id: v.vn_id, sop_id: good.sop_id, rev: null, old: { sop_id: cp.sop_id }, new: { sop_id: good.sop_id }, fields: ['sop_id'], ctx: ctx2, after: history });
+      }
+    }
     history = E.historyRows({ table: 'sops', row_id: cp.sop_id, sop_id: cp.sop_id, rev: null, old: { row: 'copy ' + name },
       new: { row: 'removed: copy ' + name + ', now ' + rev + ' of ' + good.sop_id }, fields: ['row'], ctx: ctx2, after: history });
     tables.history = t.history.concat(history);
@@ -361,7 +377,7 @@ const ENGINE_COPIES = (function () {
   }
 
   /* deleteCopy({ tables, sop_id, ctx }) → { refusals: null, new_history, tables }: every row of the copy goes (History stays); a key
-     made only in the copy is retired on the good version so it is never used again */
+     made only in the copy is retired on the good version so it is never used again; build 64: the copy's own Values Needed rows go too */
   function deleteCopy(input) {
     need(input, ['tables', 'sop_id', 'ctx'], 'deleteCopy');
     const t = input.tables, ctx = input.ctx;
@@ -386,13 +402,23 @@ const ENGINE_COPIES = (function () {
       tables[table] = t[table].filter(r => !isCp(r));
     }
     tables.retired_keys = otherRetired.concat(retire);
-    const history = E.historyRows({ table: 'sops', row_id: cp.sop_id, sop_id: cp.sop_id, rev: null, old: { row: 'copy ' + name }, new: { row: 'removed: copy ' + name },
-      fields: ['row'], ctx: Object.assign({}, ctx, { reason: 'Delete copy ' + name }), after: [] });
+    const ctx2 = Object.assign({}, ctx, { reason: 'Delete copy ' + name });
+    let history = E.historyRows({ table: 'sops', row_id: cp.sop_id, sop_id: cp.sop_id, rev: null, old: { row: 'copy ' + name }, new: { row: 'removed: copy ' + name },
+      fields: ['row'], ctx: ctx2, after: [] });
+    /* build 64: the copy's own Values Needed rows (from its draft file) go with it */
+    const ownVn = (t.values_needed || []).filter(isCp);
+    if (ownVn.length) {
+      tables.values_needed = t.values_needed.filter(v => !isCp(v));
+      for (const v of ownVn) {
+        history = E.historyRows({ table: 'values_needed', row_id: v.vn_id, sop_id: cp.sop_id, rev: null, old: { row: v.vn_id + ' ' + v.value_needed },
+          new: { row: 'removed: ' + v.vn_id + ' ' + v.value_needed }, fields: ['row'], ctx: ctx2, after: history });
+      }
+    }
     tables.history = t.history.concat(history);
     return { refusals: null, new_history: history, tables: tables };
   }
 
-  return { copyInfo, copiesOf, familyOrder, copyIdFor, saveCopy, compareCopy, promotePlan, promotedSince, promoteCopy, deleteCopy, isCopy, stepMarks, stepCompare,
+  return { copyInfo, copiesOf, familyOrder, copyIdFor, saveCopy, compareCopy, promotePlan, promotedSince, promoteCopy, deleteCopy, isCopy, stepMarks, stepCompare, vnOfSop,
     NAME_MAX, PER_REV };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_COPIES;

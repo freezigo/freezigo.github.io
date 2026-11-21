@@ -11,7 +11,13 @@ const RENDER_TABS = (function () {
     const f = filter || {};
     let h = '<h2>Values Needed <span class="muted">' + esc(view.vn.open) + ' open, ' + esc(view.vn.given) + ' given</span></h2>';
     /* build 39: a copy shows the Values Needed of its good version for reading; they are given there */
-    if (view.copy) { h += '<p class="copy-line">Values Needed belong to the good version (' + esc(view.copy.of) + '): give them there. They show here for reading.</p>'; }
+    const own = (view.vn.own || []);
+    if (view.copy) {
+      h += '<p class="copy-line">Values Needed belong to the good version (' + esc(view.copy.of) + '): give them there. They show here for reading.' +
+        /* build 64: the rows of the copy's draft file stay with the copy until Make this the good version */
+        (own.length ? ' ' + (own.length === 1 ? 'One row came' : own.length + ' rows came') + ' with this copy\'s draft file (marked "this copy\'s"): ' + (own.length === 1 ? 'it goes' : 'they go') +
+          ' to ' + esc(view.copy.of) + ' with Make this the good version, and with Delete this copy ' + (own.length === 1 ? 'it goes' : 'they go') + ' too.' : '') + '</p>';
+    }
     h += '<p><label>Show <select id="vn-state"><option value="all"' + (f.state === 'all' ? ' selected' : '') + '>all</option>' +
       '<option value="open"' + (f.state !== 'all' && f.state !== 'given' ? ' selected' : '') + '>open</option>' +
       '<option value="given"' + (f.state === 'given' ? ' selected' : '') + '>given</option></select></label> ' +
@@ -27,7 +33,7 @@ const RENDER_TABS = (function () {
       if (fld === 'links') { return vnLinksText(v.links); }
       if (fld === 'blocks_release') { return yn(v.blocks_release); }
       if (fld === 'give') {
-        if (view.copy) { return '<span class="muted">in ' + esc(view.copy.of) + '</span>'; }
+        if (view.copy) { return own.indexOf(v.vn_id) >= 0 ? '<span class="muted">this copy\'s</span>' : '<span class="muted">in ' + esc(view.copy.of) + '</span>'; }
         return '<button class="btn-give" data-vn="' + esc(v.vn_id) + '">' + (v.state === 'open' ? 'Give the value' : 'Change') + '</button><div class="give-slot" id="give-' + esc(v.vn_id) + '"></div>';
       }
       return lines(v[fld]);

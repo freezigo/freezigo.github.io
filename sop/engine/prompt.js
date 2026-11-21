@@ -9,7 +9,7 @@ const ENGINE_PROMPT = (function () {
 const TYPES_ = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
 const SETS_ = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
 const DR = (typeof ENGINE_DRAFT !== 'undefined') ? ENGINE_DRAFT : require('./draft.js');
-const PROMPT_NAME = 'Freezigo SOP draft prompt v3';
+const PROMPT_NAME = 'Freezigo SOP draft prompt v4';
 const FILE_NAME = PROMPT_NAME + '.md';
 const EXAMPLE_SOP = 'BMC-L1-TANK-01';
 const EXAMPLE_BY = 'AI chat for Divyal Patel';
@@ -62,6 +62,8 @@ const NOTE = {
   'sections.any_time_steps': ['Steps of this section that may be done before the Needs are met.', ['8.1', '8.2']],
   'sections.manpower_people': ['Number of people.', 2],
   'sections.est_min': ['Minutes for the section. Empty when not given.', 45],
+  'sections.max_wait': ['Longest wait before the next section: No limit when the item can wait; the time the source gives; [VALUE NEEDED: Divyal] with a values_needed row when the source says the wait matters (water standing in the tank, glue open time) but gives no number.', 'No limit'],
+  'sections.restart_step': ['Where to start again when the section stops halfway: the first step not done; inside a timed chain (one weld route, glue coat to press, a test), the start of the chain.', '9.1 (the full test)'],
   'steps.step_no': ['Step number as text in quotes, the first number is the section. First step of a section x.1, a sub-step x.y.1, never x.0.', '9.5.1'],
   'steps.section': ['Section number: the first number of the step number.', 9],
   'steps.action_gu': ['The Gujarati line of the step: the source\'s when the English line is the source\'s; else yours with the Glossary words, ending with (draft) (rule 14).', '(the line in Gujarati letters)'],
@@ -69,11 +71,13 @@ const NOTE = {
   'steps.max': ['Highest OK reading, in the Unit. Empty when not given.', 1295],
   'steps.est_min': ['Minutes this step takes. Empty when not given.', 10],
   'steps.hold': ['N for no hold; H1 on a Hold step (the Builder numbers the holds H1, H2 in order).', 'N'],
-  'steps.repeat_count': ['How many times the step is done on one unit.', 1],
+  'steps.gauge_id': ['The gauge of a Reading: its Gauge ID from the Gauges list (part 7.2). No gauge there fits: empty, the gauge named in Tool, and a values_needed row.', 'G-TAPE'],
+  'steps.repeat_count': ['How many times the step is done on one unit. A step done once per piece repeats once per piece: 27 nitrile pieces, 27; 12 angles, 12.', 27],
   'steps.photo_ref': ['Photo file names the source gives, as a list. Empty when none: the Builder names new photos by Key.', ['TANK01-1220-OK.jpg']],
   'steps.photo_required': ['true when the operator must take a photo at this step.', false],
   'steps.remark': ['Notes for editors: guesses with % sure, questions, Photo to take. Not printed on the floor copy.', 'Inferred, 80% sure: ask Divyal.'],
   'safety_items.no': ['Running number in table P-1.', 1],
+  'safety_items.item': ['A PPE or safety item to wear or to have in place (goggles, gloves, a chained cylinder). Never a warning: a warning goes in the Warning of the steps it is about.', 'Laser safety goggles (1064 to 1080 nm, as per machine manual)'],
   'materials.sr': ['Running number in table M-1.', 14],
   'tools.no': ['Running number in table T-1.', 14],
   'ref_tables.columns': ['Column names.', ['Joint', 'Welded at', 'Where', 'Type']],
@@ -132,9 +136,9 @@ function example(tables, today) {
     values_needed: full.values_needed.filter(v => names(v.step_text)) });
 }
 
-const STATIC_HEAD = (today, glossary, skillDate, BUILD) => `# ${PROMPT_NAME}
+const STATIC_HEAD = (today, glossary, skillDate, BUILD, gauges) => `# ${PROMPT_NAME}
 
-Made by the SOP Builder (build ${BUILD}) on ${today} from the freezigo-sop skill (copied ${skillDate}; the company PC's name and folders left out), the SOP Builder's data rules (contract ${TYPES_.version}) and its Glossary (${glossary} terms). Made by the SOP Builder (Copy the prompt): never edit it by hand; a change is a new version.
+Made by the SOP Builder (build ${BUILD}) on ${today} from the freezigo-sop skill (copied ${skillDate}; the company PC's name and folders left out), the SOP Builder's data rules (contract ${TYPES_.version}) and its Glossary (${glossary} terms) and Gauges (${gauges}). Made by the SOP Builder (Copy the prompt): never edit it by hand; a change is a new version.
 
 ## How to use it (for the person)
 
@@ -240,6 +244,13 @@ It brings the file in and warns (fix what you can) when:
 - the level does not match the SOP ID;
 - a field or a part is not in part 6, or is one the Builder gives (left out).
 
+Check yourself too (the reader does not):
+
+- every Reading names its gauge from part 7.2, or has a values_needed row for it;
+- a step done once per piece has the number of pieces as its Repeat count;
+- the safety list holds PPE and safety items only; every warning sits in the Warning of its steps;
+- every section has a Restart step and a Max wait (part 6.2).
+
 Then hand over:
 
 1. The two files: \`<SOP ID> draft.json\` and \`<SOP ID> draft.pdf\`.
@@ -251,7 +262,8 @@ function makePrompt(input) {
   const skill = String(input.skill).replace(/^---[\s\S]*?---\s*/, '').replace(/^# .*\n+/, '').replace(/^## /gm, '### ').trim();
   const glossary = (input.tables.glossary || []).slice().sort((a, b) => a.no - b.no);
   const ex = example(input.tables, input.today);
-  const parts = [STATIC_HEAD(input.today, glossary.length, input.skillDate, input.build)];
+  const gauges = (input.tables.gauges || []).slice().sort((a, b) => String(a.gauge_id).localeCompare(String(b.gauge_id)));
+  const parts = [STATIC_HEAD(input.today, glossary.length, input.skillDate, input.build, gauges.length)];
   parts.push('## 4. The SOP rules (the freezigo-sop skill)\n\n' + skill + '\n');
   parts.push(RULES);
   const p6 = ['## 6. The data file', '', '### 6.1 Its parts', '', 'One JSON file, UTF-8, with these parts in this order (… is a value):', '', '```json', skeleton(), '```', '',
@@ -273,8 +285,13 @@ function makePrompt(input) {
     (ex.steps.every(s => !s.action_gu) ? 'Its Gujarati lines are null because the Builder has none yet for ' + EXAMPLE_SOP + '; your file has them (rule 14). ' : '') +
     'The SOP Builder reads this example as it is.', '', '```json', JSON.stringify(ex, null, 2), '```', '');
   parts.push(p6.join('\n'));
-  const p7 = ['## 7. Glossary', '', 'Use these words. The Gujarati line uses the Gujarati word of each term; a term with no Gujarati word yet: rule 14.', '', '| Term | Gujarati | Meaning |', '|---|---|---|'];
+  const p7 = ['## 7. Glossary and Gauges', '', '### 7.1 Glossary', '', 'Use these words. The Gujarati line uses the Gujarati word of each term; a term with no Gujarati word yet: rule 14.', '',
+    '| Term | Gujarati | Meaning |', '|---|---|---|'];
   for (const g of glossary) { p7.push('| ' + cell(g.term) + ' | ' + cell(g.gujarati || '(none yet)') + ' | ' + cell(g.meaning) + ' |'); }
+  /* build 64 (the SS tank test: no Reading had a gauge): the Gauges list, as the Glossary, from the open data */
+  p7.push('', '### 7.2 Gauges', '', 'A Reading names its gauge by its Gauge ID (steps.gauge_id). No gauge here fits: leave gauge_id empty, name the gauge in Tool, and add a values_needed row.', '',
+    '| Gauge ID | Name | Measures |', '|---|---|---|');
+  for (const g of gauges) { p7.push('| ' + cell(g.gauge_id) + ' | ' + cell(g.name) + ' | ' + cell(g.measures) + ' |'); }
   parts.push(p7.join('\n') + '\n');
   parts.push(PDF);
   parts.push(CHECKS);

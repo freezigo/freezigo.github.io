@@ -65,7 +65,8 @@ const ENGINE_DRAFT = (function () {
 
   /* ---- exportDraft ---- */
   /* exportDraft(tables, sopId, made) → the draft file of the SOP's current revision (a copy: under the SOP ID of its good version);
-     made = { on, by } (optional): who saved it. The lists in their table order; the open Values Needed rows of the good version */
+     made = { on, by } (optional): who saved it. The lists in their table order; the open Values Needed rows of the good version (build 64:
+     and a copy's own open rows) */
   function exportDraft(tables, sopId, made) {
     if (!tables || !Array.isArray(tables.sops)) { fail('exportDraft', 'tables.sops is missing'); }
     const sop = SEL.sopOf(tables, sopId);
@@ -77,7 +78,9 @@ const ENGINE_DRAFT = (function () {
       sop: Object.assign(pick(sop, PARTS.sop), { sop_id: good }), revision: pick(SEL.revisionOf(tables, sopId, rev), PARTS.revision),
       sections: SEL.sectionsOf(tables, sopId, rev).map(r => pick(r, PARTS.sections)), steps: SEL.stepsOf(tables, sopId, rev).map(r => pick(r, PARTS.steps)) };
     for (const name of LISTS) { out[name] = mine(name).map(r => pick(r, PARTS[name])); }
-    out.values_needed = (tables.values_needed || []).filter(v => v.sop_id === good && empty(v.value)).map(r => pick(r, PARTS.values_needed));
+    const vnAll = tables.values_needed || [];
+    out.values_needed = vnAll.filter(v => v.sop_id === good && empty(v.value)).concat(good === sopId ? [] : vnAll.filter(v => v.sop_id === sopId && empty(v.value)))
+      .map(r => pick(r, PARTS.values_needed));
     return out;
   }
 
@@ -468,11 +471,22 @@ const ENGINE_DRAFT = (function () {
     const newSop = copy(cpSop);
     for (const f of SOP_KEEP) { if (p.sop[f[0]] !== null && p.sop[f[0]] !== undefined) { newSop[f[0]] = p.sop[f[0]]; } }
     const steps = stepRows(p, newSop, rev, keys);
+    /* build 64 (the SS tank test, example_draft_file.md part 11): the prompt leaves photo names to the Builder, and a chat may leave a gauge
+       empty: an empty one keeps the good version's of the same Key (a gauge only on a Reading) */
+    const goodByKey = {};
+    for (const s of goodSteps) { goodByKey[s.key] = s; }
+    let keptPhoto = 0, keptGauge = 0;
+    for (const s of steps) {
+      const g = goodByKey[s.key];
+      if (!g) { continue; }
+      if (!(Array.isArray(s.photo_ref) && s.photo_ref.length) && Array.isArray(g.photo_ref) && g.photo_ref.length) { s.photo_ref = copy(g.photo_ref); keptPhoto++; }
+      if (empty(s.gauge_id) && !empty(g.gauge_id) && s.step_type === 'Reading') { s.gauge_id = g.gauge_id; keptGauge++; }
+    }
     const goodSec = {};
     for (const s of SEL.sectionsOf(t, good.sop_id, rev)) { goodSec[s.section] = s.source_ref === undefined ? null : s.source_ref; }
     const sections = sectionRows(p, cid, rev, n => (goodSec[n] === undefined ? null : goodSec[n]));
     const lists = listRows(p, cid, rev);
-    const v = vnRows(p, good.sop_id, (t.values_needed || []).filter(x => x.sop_id === good.sop_id), ctx);
+    const v = vnRows(p, cid, (t.values_needed || []).filter(x => x.sop_id === good.sop_id), ctx);
     const inFile = {};
     for (const s of p.steps) { inFile[s.step_no] = true; }
     const missing = goodSteps.filter(s => !inFile[s.step_no]).map(s => s.step_no);
@@ -483,10 +497,16 @@ const ENGINE_DRAFT = (function () {
       lines.push(plural(missing.length, 'step') + ' of ' + good.sop_id + ' ' + rev + (missing.length === 1 ? ' is' : ' are') + ' not in the file (' + shown + '): the Compare tab shows ' +
         (missing.length === 1 ? 'it' : 'them') + ' as not in the copy.');
     }
+    if (keptPhoto || keptGauge) {
+      lines.push('Kept from ' + good.sop_id + ' ' + rev + ' by Key (empty in the file): ' + [keptPhoto ? 'the photo names of ' + plural(keptPhoto, 'step') : null,
+        keptGauge ? 'the gauge of ' + plural(keptGauge, 'step') : null].filter(x => x).join(', ') + '.');
+    }
     const changed = SOP_KEEP.filter(f => E.asText(cpSop[f[0]]) !== E.asText(newSop[f[0]])).map(f => f[1]);
     if (changed.length) { lines.push('Changed from ' + good.sop_id + ': ' + changed.join(', ') + '.'); }
+    /* build 64: the file's new rows stay with the copy until Make this the good version (Delete this copy takes them out) */
     lines.push('Values Needed: ' + (!p.values_needed.length ? 'none in the file.'
-      : (v.rows.length ? vnLine(v.rows) + ' added' + (v.already ? '; ' + v.already + ' already in the list of ' + good.sop_id : '') + '.'
+      : (v.rows.length ? vnLine(v.rows) + ' added to this copy (' + (v.rows.length === 1 ? 'it goes' : 'they go') + ' to ' + good.sop_id + ' with Make this the good version)' +
+        (v.already ? '; ' + v.already + ' already in the list of ' + good.sop_id : '') + '.'
         : p.values_needed.length + ' in the file, all already in the list of ' + good.sop_id + '.')));
     const revRow = copy(st.sop_revisions.find(r => r.sop_id === cid && r.rev === rev));
     for (const f of PARTS.revision) { if (f !== 'revision_note' && p.revision[f] !== null && p.revision[f] !== undefined) { revRow[f] = p.revision[f]; } }
@@ -499,7 +519,7 @@ const ENGINE_DRAFT = (function () {
     for (const n of LISTS) { tables[n] = st[n].filter(r => !mine(r)).concat(lists[n]); }
     const H = (table, rowId, sopId, rev2, old, nw, flds, after) => E.historyRows({ table: table, row_id: rowId, sop_id: sopId, rev: rev2, old: old, new: nw, fields: flds, ctx: ctx, after: after });
     let hist = H('sops', cid, cid, null, { row: null }, { row: 'draft file: ' + lines[0] + ' ' + lines[1] }, ['row'], sc.new_history);
-    for (const r of v.rows) { hist = H('values_needed', r.vn_id, good.sop_id, null, { row: null }, { row: 'added: ' + r.vn_id + ' ' + r.value_needed }, ['row'], hist); }
+    for (const r of v.rows) { hist = H('values_needed', r.vn_id, cid, null, { row: null }, { row: 'added: ' + r.vn_id + ' ' + r.value_needed }, ['row'], hist); }
     tables.history = t.history.concat(hist);
     return { refusals: null, kind: 'copy', sop_id: cid, report: lines, warnings: p.warnings, new_history: hist, tables: tables };
   }

@@ -25,14 +25,13 @@ const ENGINE = (function () {
   /* build 45: how many main changes wait for a copy (example_copy_sync.md part 5.2); 0 for a good version */
   const waiting = (t, sop) => (CP.isCopy(sop) ? SY.pendingChanges(t.history, sop.copy_of, sop.sop_id).length : 0);
   const KINDS = ['step', 'sub'];
-  /* a copy (build 39, spec/example_copy.md part 6): never signed, released or walked; no new revision; Values Needed stay the good version's */
+  /* a copy (build 39, spec/example_copy.md part 6): never signed, released or walked; no new revision; Values Needed stay the good version's
+     (build 64: but the rows of the copy's draft file stay with the copy until Make this the good version) */
   const COPY_LOCK = 'A copy cannot be signed or released: make it the good version first (Header tab).';
   const copyRefusal = field => ({ refusals: [{ field: field, message: COPY_LOCK }] });
-  /* vnOf(t, sop) → the Values Needed rows the SOP shows: its own, or for a copy the good version's with the copy's SOP ID (so they link to its steps) */
-  function vnOf(t, sop) {
-    if (!CP.isCopy(sop)) { return t.values_needed.filter(v => v.sop_id === sop.sop_id); }
-    return t.values_needed.filter(v => v.sop_id === sop.copy_of).map(v => Object.assign({}, v, { sop_id: sop.sop_id }));
-  }
+  /* vnOf(t, sop) → the Values Needed rows the SOP shows (engine/copies.js vnOfSop): its own; a copy the good version's with the copy's SOP ID
+     (so they link to its steps) and its own (build 64) */
+  const vnOf = (t, sop) => CP.vnOfSop(t, sop.sop_id);
   /* texts of one SOP revision that may name a step number (sections, steps, Values Needed) */
   function textsOf(t, sopId, rev, steps) {
     const out = [];
@@ -121,7 +120,9 @@ const ENGINE = (function () {
       sop: sop, rev: rev, steps_count: SEL.stepCount(steps).steps, sections: sectionRows,
       /* build 36 (example_release.md part 8.1): draft mode, and the revision still on the floor while a newer one is not released */
       draft_mode: rev ? !MN.reasonAsked(rev) : false, floor_rev: rev ? R.floorRev(SEL.revisionsOf(t, sop.sop_id), sop) : null,
-      vn: { open: counts.open, given: counts.given, rows: vnRows, owner: CP.isCopy(sop) ? sop.copy_of : sop.sop_id },
+      vn: { open: counts.open, given: counts.given, rows: vnRows, owner: CP.isCopy(sop) ? sop.copy_of : sop.sop_id,
+        /* build 64: a copy's own rows (from its draft file), by vn_id */
+        own: CP.isCopy(sop) ? t.values_needed.filter(v => v.sop_id === sop.sop_id).map(v => v.vn_id) : [] },
       /* build 39: what the SOP is a copy of (null for a good version), and the copies of its good version */
       copy: CP.copyInfo(t, sop.sop_id), copies: CP.copiesOf(t, sop.sop_id), main_changes: waiting(t, sop),
       release: rel, record_sheet: steps.length ? L.recordSheetRows(steps, sections) : null,
