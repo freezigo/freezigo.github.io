@@ -191,7 +191,9 @@ const ENGINE_FACTS = (function () {
     if (rules.length) { out.push(line('rules', rules.join(' · '))); }
     if (!empty(section.ends_with)) { out.push(line('ends', 'Ends: ' + endsText(section.ends_with))); }
     const num = v => (v === null || v === undefined || v === '' ? 'needed' : String(v));
-    out.push(line('est', 'Est min: ' + num(section.est_min) + ' · People: ' + num(section.manpower_people)));
+    /* build 69: Skilled and Helper (contract 1.7); neither given: "Crew: needed", so the line stays one line in the box */
+    const crew = num(section.skilled) === 'needed' && num(section.helper) === 'needed' ? 'Crew: needed' : 'Skilled: ' + num(section.skilled) + ' · Helper: ' + num(section.helper);
+    out.push(line('est', 'Est min: ' + num(section.est_min) + ' · ' + crew));
     if (noteLine) { out.push(noteLine); }
     return out;
   }

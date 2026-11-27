@@ -12,23 +12,19 @@ const APP_COPIES = (function () {
     return { who: state.editor, now: APP.nowIso(), next_hist_id: await STORE.nextId('history', 'hist_id'), next_note_id: await STORE.nextId('chart_notes', 'note_id'),
       next_rh_id: await STORE.nextId('revision_history', 'rh_id'), reason: '' };
   }
-  const card = cls => $('tab-body').querySelector('.' + cls);
+  const card = cls => document.querySelector('.' + cls);
 
-  /* wire(body): the buttons of the Save a copy, This copy and Copies cards */
+  /* wire(body): the buttons of the copy card and the copies list of the Header tab; build 71: Save a copy is ☰ Another copy (its form
+     under the SOP line, ui/app_line.js), Compare is on the SOP line, Delete this copy in ☰ All tabs */
   function wire(body) {
-    if ($('btn-save-copy')) {
-      $('btn-save-copy').onclick = () => guard('ui saveCopy', saveCopy);
-      $('cp-name').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); guard('ui saveCopy', saveCopy); } };
-    }
-    if ($('btn-copy-compare')) { $('btn-copy-compare').onclick = () => guard('ui compareCopy', () => APP.showTab('compare')); }
     if ($('btn-copy-promote')) { $('btn-copy-promote').onclick = () => guard('ui promoteCopy', promote); }
-    if ($('btn-copy-delete')) { $('btn-copy-delete').onclick = () => guard('ui deleteCopy', remove); }
     for (const a of body.querySelectorAll('.copies-list .sop-link')) {
       a.onclick = e => { e.preventDefault(); guard('ui showSop', () => APP.showSop(a.dataset.sop, 'header')); };
     }
   }
 
-  async function saveCopy() {
+  /* saveCopy(place): the name typed in the form of ☰ Another copy; the new copy opens at the same place (build 71) */
+  async function saveCopy(place) {
     const sop = state.view.sop, ctx = await ctxOf();
     console.log('[ui → engine] saveCopy ' + sop.sop_id + ' "' + $('cp-name').value + '"');
     const r = ENGINE.saveCopy({ tables: state.tables, sop_id: sop.sop_id, name: $('cp-name').value, ctx: ctx });
@@ -39,8 +35,8 @@ const APP_COPIES = (function () {
     }
     console.log('[engine → ui] saveCopy: ' + r.sop_id + ', ' + r.tables.steps.filter(s => s.sop_id === r.sop_id).length + ' steps');
     await APP.writeTables(r.tables, ctx);
-    await APP.showSop(r.sop_id, 'header');
-    window.scrollTo(0, 0);   /* the This copy card is first on the tab */
+    await APP_LINE.openAt(r.sop_id, place || { tab: 'header' });
+    window.scrollTo(0, 0);
   }
 
   /* Make this the good version: the engine checks first (an empty note, a step retired in the good version since the copy was saved);

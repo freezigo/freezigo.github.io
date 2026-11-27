@@ -1,4 +1,4 @@
-# SOP App data contract, version 1.3 (1.0 frozen at Stage 2; 1.1 and 1.2 on 2026-11-07, 1.3 on 2026-11-12, see the end)
+# SOP App data contract, version 1.7 (1.0 frozen at Stage 2; 1.1 and 1.2 on 2026-11-07, 1.3 and 1.4 on 2026-11-12, 1.5 on 2026-11-13, 1.6 on 2026-11-16, 1.7 on 2026-11-27, see the end)
 
 Written 2026-11-05, Builder step 2. Machine version: schema\types.js,
 schema\types_floor.js, schema\sets.js, schema\source_map.json. Both say the
@@ -122,6 +122,8 @@ Superseded; only Released reaches the Floor App.
 | max_wait | text | no | Before 10.1: [VALUE NEEDED: Divyal] (water standing in the tank) |
 | restart_step | text | no | 9.1 (the full test) |
 | manpower | text | no | 2 to stand the tank on blocks (9.4); test [VALUE NEEDED: Divyal] |
+| skilled | int, 0 or more (1.7) | no (null = not given) | null (from the chart, build 69: section 5 gets 1) |
+| helper | int, 0 or more (1.7) | no (null = not given; 0 = no helper) | null (from the chart, build 69: section 5 gets 1) |
 | est_min | number | no (null = [VALUE NEEDED]) | null |
 | needs_sections | list of int | no | null (build 15: [7, 8]) |
 | needs_sops | list of text | no | null |
@@ -129,7 +131,6 @@ Superseded; only Released reaches the Floor App.
 | wait_after | int | no | null (section 11 from build 15: 10) |
 | wait_min | number | no | null (section 11 from build 15: 20) |
 | any_time_steps | list of text | no | null (section 8 from build 15: ["8.1", "8.2"]) |
-| manpower_people | int | no | null |
 | source_ref | text | no | null (a kickstarted section: AC01, the chart box ref) |
 
 The seven clean Needs fields are filled by the SOP project from build 15
@@ -138,7 +139,9 @@ The seven clean Needs fields are filled by the SOP project from build 15
 is needed; needs_setup = the machine set-up must be done this shift;
 wait_after and wait_min = this section starts at least wait_min minutes
 after section wait_after ends; any_time_steps = steps of this section
-that may be done before the Needs are met; manpower_people = people.
+that may be done before the Needs are met. skilled and helper (1.7) =
+the crew: skilled people (the chart's employee) and helpers; crew =
+skilled + helper; standard minutes (S6) = (skilled + helper) x est_min.
 Sections 1 (Safety and PPE) and 2 (Materials, tools and machines) are not
 rows here: the Builder shows them from safety_items, materials and tools.
 
@@ -265,7 +268,7 @@ for release), defects_found (text, optional), fixed_in_rev (text,
 optional).
 
 ### meta (one row)
-contract_version (1.3), data_build (int: 14), imported_at (datetime),
+contract_version (1.7), data_build (int: 14), imported_at (datetime),
 import_note (text), builder_build (int).
 
 ## 5. Floor tables (shape fixed now, not used until S3; see part 8)
@@ -461,3 +464,24 @@ logged in spec.md's decision log with its reason.
 - 1.3 to 1.5 files read as 1.6 (config.js contract_reads; owner reads as
   empty); every write says 1.6; tools/migrate_1_6.py moves the files and
   meta in one go and fills owner from the History rows.
+
+## Changes in 1.7 (2026-11-27, Vishal in the "app ui design" chat: "dont keep manpower ppl, keep 2 types- skilled ... and helper", "sections only for now"; spec\example_people_69.md)
+- sections adds, after manpower, skilled (int, 0 or more, optional: the
+  skilled people of the section, a chart's "employee") and helper (int,
+  0 or more, optional). Empty = not given yet; 0 = a real zero. The
+  words of manpower stay.
+- sections.manpower_people goes. On 27 Nov it was filled in only in two
+  test copies that build 68 deletes; no editor ever changed it.
+- Steps keep est_min only: no skilled or helper on steps for now.
+- A chart box gives skilled, helper and est_min by one rule
+  (engine\kickstart.js chartPeople): a box with 0 minutes gives nothing;
+  else employee, helper and minutes; a blank gives nothing for its field.
+- 1.3 to 1.6 files read as 1.7 (config.js contract_reads): manpower_people
+  is left out (types.js removed), skilled and helper read as empty. Every
+  write says 1.7. The PC's \data stays as it is (the archive of switch
+  day; nothing in it fills manpower_people).
+- Online: the database step 20261127200000_sop_crew_69 adds the two
+  columns, drops manpower_people (refused while it is filled in), sets
+  sop_meta to 1.7 and makes sop_save refuse a page of another layout
+  (the page sends its layout with each save). A page whose layout differs
+  from the database's only reads.

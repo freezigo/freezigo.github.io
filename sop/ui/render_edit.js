@@ -82,7 +82,7 @@ const RENDER_EDIT = (function () {
     }
     if (ROW_NOTE[row]) { h += '<div class="note">' + esc(ROW_NOTE[row]) + '</div>'; }
     h += '<div class="ff-buttons"><button id="btn-fd-save" type="button">Save</button> <button id="btn-fd-cancel" type="button">Cancel</button> ' +
-      '<button id="btn-fd-full" type="button">Edit the whole step</button><div class="note">Save checks the row, then asks the reason for the change.</div>' +
+      '<button id="btn-fd-full" type="button">Edit the whole step</button><div class="note">Enter saves, Esc cancels. In a box of several lines Enter starts a new line.</div>' +
       '<div class="refusal" data-for="form"></div></div>';
     return h + '</form></div>';
   }

@@ -30,7 +30,7 @@ const ENGINE_SYNC_MAIN = (function () {
   const STATE_WORDS = { change: 'Will change', same: 'Same already', pick: 'Pick', absent: 'Not in the copy', blocked: 'Cannot apply' };
   const SEC_LABEL = { name: 'Name', name_gu: 'Gujarati name', needs_sections: 'Needs sections', needs_sops: 'Needs SOPs', needs_setup: 'Set-up this shift',
     wait_after: 'Wait after section', wait_min: 'Wait minutes', any_time_steps: 'Any time steps', ends_with: 'Ends with', max_wait: 'Max wait',
-    restart_step: 'Restart step', manpower: 'Manpower', manpower_people: 'People', est_min: 'Est min', needs_note: 'Needs note', source_ref: 'Chart ref' };
+    restart_step: 'Restart step', manpower: 'Manpower', skilled: 'Skilled', helper: 'Helper', est_min: 'Est min', needs_note: 'Needs note', source_ref: 'Chart ref' };
   const LIST_NAME = { safety_items: '1 Safety and PPE', materials: '2 Materials', tools: 'Tools', worked_examples: 'Worked examples' };
   const PIC_LABEL = { caption: 'Caption', file: 'File', used_at: 'Used at' };
   const lastToken = s => { const p = String(s).split(' '); return p[p.length - 1]; };

@@ -25,8 +25,8 @@ const ENGINE_DRAFT = (function () {
   const PARTS = {
     sop: ['sop_id', 'sop_type', 'level', 'product', 'title', 'who_does_it', 'input_from', 'output_to', 'output_serial_tracked'],
     revision: ['purpose', 'scope', 'process_flow', 'reference_drawings', 'how_to_use', 'setup_rule', 'hold_points', 'est_min_total', 'prepared_by', 'revision_note'],
-    sections: ['section', 'name', 'name_gu', 'needs_note', 'ends_with', 'max_wait', 'restart_step', 'manpower', 'est_min', 'needs_sections', 'needs_sops', 'needs_setup',
-      'wait_after', 'wait_min', 'any_time_steps', 'manpower_people'],
+    sections: ['section', 'name', 'name_gu', 'needs_note', 'ends_with', 'max_wait', 'restart_step', 'manpower', 'skilled', 'helper', 'est_min', 'needs_sections', 'needs_sops',
+      'needs_setup', 'wait_after', 'wait_min', 'any_time_steps'],
     steps: ['step_no', 'section', 'step_type', 'action', 'action_gu', 'why', 'warning', 'tool', 'gauge_id', 'material', 'min', 'max', 'unit', 'limit_status', 'check',
       'if_fail', 'skip_if', 'hold', 'repeat_count', 'photo_ref', 'photo_required', 'est_min', 'remark'],
     safety_items: ['no', 'status', 'item', 'who', 'used_at', 'tag'],
@@ -100,7 +100,12 @@ const ENGINE_DRAFT = (function () {
         if (typeof v === 'string') { return { v: v, msg: null }; }
         if (typeof v === 'number') { return { v: String(v), msg: null }; }
         return { v: v, msg: L + ' must be text' };
-      case 'int': { const n = asNumber(v); return Number.isInteger(n) ? { v: n, msg: null } : { v: v, msg: L + ' must be a whole number' }; }
+      case 'int': {
+        const n = asNumber(v);
+        /* build 69: a field with a lowest value (Skilled and Helper: 0) says so */
+        if (def.min !== undefined) { return Number.isInteger(n) && n >= def.min ? { v: n, msg: null } : { v: v, msg: L + ' must be a whole number of ' + def.min + ' or more' }; }
+        return Number.isInteger(n) ? { v: n, msg: null } : { v: v, msg: L + ' must be a whole number' };
+      }
       case 'number': { const n = asNumber(v); return (typeof n === 'number' && !isNaN(n)) ? { v: n, msg: null } : { v: v, msg: L + ' must be a number' }; }
       case 'bool': { const b = asBool(v); return (b === true || b === false) ? { v: b, msg: null } : { v: v, msg: L + ' must be true or false' }; }
       case 'set': return SETSX[def.set].indexOf(v) >= 0 ? { v: v, msg: null } : { v: v, msg: L + ' must be one of: ' + SETSX[def.set].join(', ') };
@@ -128,6 +133,11 @@ const ENGINE_DRAFT = (function () {
     const clean = {};
     for (const k of Object.keys(row)) {
       if (PARTS[part].indexOf(k) >= 0) { continue; }
+      /* build 69: a field the Builder no longer has (manpower_people of prompt v4 to v6): left out, a word only when it has a value */
+      if (((TYPESX.removed || {})[TABLE[part]] || []).indexOf(k) >= 0) {
+        if (!empty(row[k])) { out.warn(place + k + ' ' + (typeof row[k] === 'string' ? row[k] : JSON.stringify(row[k])) + ' is not read since contract 1.7 (27 Nov 2026): left out. Give skilled and helper instead.'); }
+        continue;
+      }
       out.warn(place + k + (GIVEN[part].indexOf(k) >= 0 ? ' is given by the Builder: left out.' : ' is not a field of the Builder: left out.'));
     }
     for (const name of PARTS[part]) {

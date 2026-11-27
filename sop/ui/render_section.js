@@ -25,12 +25,12 @@ const RENDER_SECTION = (function () {
       ' <span class="muted">' + esc(s.steps_count) + ' steps' + (s.first_step ? ', ' + esc(s.first_step) + ' to ' + esc(s.last_step) : '') + (s.sub_steps ? ' (' + esc(s.sub_steps) + ' sub-step' + (s.sub_steps > 1 ? 's' : '') + ' not counted)' : '') + '</span></h2>';
     h += s.name_gu ? '<div class="gu">' + esc(s.name_gu) + '</div>' : '<div class="gu empty">(no Gujarati section name: the floor copy shows English only)</div>';
     h += R.kvTable([['Needs note', s.needs_note], ['Ends with', s.ends_with], ['Restart', s.restart_step], ['Max wait', s.max_wait],
-      ['Manpower', s.manpower], ['Est min', s.est_min], ['Chart ref', s.source_ref],
+      ['Manpower', s.manpower], ['Skilled', s.skilled], ['Helper', s.helper], ['Est min', s.est_min], ['Chart ref', s.source_ref],
       ['Clean Needs (set on the Flow tab)', 'Needs sections ' + list(s.needs_sections) + ' · Needs SOPs ' + list(s.needs_sops) +
         ' · Needs set-up ' + show(s.needs_setup) + ' · Wait after ' + show(s.wait_after) + ' · Wait min ' + show(s.wait_min) +
-        ' · Any time steps ' + list(s.any_time_steps) + ' · Manpower people ' + show(s.manpower_people), 'raw'],
+        ' · Any time steps ' + list(s.any_time_steps), 'raw'],
       ['Values Needed in this section', esc(s.vn_rows) + ' rows (' + esc(s.vn_open) + ' open, ' + esc(s.vn_given) + ' given)', 'raw']]) +
-      (locked ? '<p class="ok">' + esc(v.sop.lock_text) + '</p>'
+      (locked ? ''   /* build 71: the lock is said on the SOP line */
         : '<p><button class="btn-add" data-section="' + esc(s.section) + '" data-after="" data-kind="step">Add a step at the start of section ' + esc(s.section) + '</button></p>') + '</div>';
     if (!locked) {
       h += '<div class="club-bar">Tick 2 or 3 steps that follow each other (up to 6 checks), then <button id="btn-club">Club the ticked steps</button> ' +

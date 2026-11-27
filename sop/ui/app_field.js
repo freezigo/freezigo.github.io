@@ -5,6 +5,8 @@
    editor opens in the row; Save hands ENGINE.saveStep only those fields
    through the Reason pop-up, then the caller writes and redraws. The
    browser's own menu stays inside inputs and while text is selected.
+   Build 70 (spec/example_job1_70.md part 2): a double-click on a row opens
+   the same editor; Enter saves in a one-line box, Esc cancels.
    No logic beyond that. Classic script (global APP_FIELD); loaded after
    ui/app_mouse.js. */
 const APP_FIELD = (function () {
@@ -26,6 +28,25 @@ const APP_FIELD = (function () {
       selected = !!s && !s.isCollapsed && String(s).trim() !== '';
     }, true);
     area.addEventListener('contextmenu', e => { guard('ui fieldMenu', () => menu(area, e)); });
+    area.addEventListener('dblclick', e => { guard('ui fieldDouble', () => double(area, e)); });
+  }
+
+  /* double(area, e): a double-click on a row of the step card opens the same editor as Edit <row> (build 70, spec/example_job1_70.md
+     part 2; ENGINE_MENUS.rowDouble); nothing for a row with no editor, a Standard step, a locked revision, an open editor or an input */
+  function double(area, e) {
+    const how = area.__field;
+    if (!how || e.target.closest('input, textarea, select, button, #field-editor, .edit-card')) { return; }
+    const row = e.target.closest('[data-row]'), card = e.target.closest('.step-card');
+    if (!row || !card || !card.contains(row)) { return; }
+    const key = card.dataset.key, st = how.cardOf(key);
+    if (!st) { throw new Error('ui fieldDouble: no step ' + key + ' on the screen'); }
+    const t = { kind: 'field', step_no: st.step_no, row: row.dataset.row, link_mode: st.link_mode, link_sop: st.link_sop };
+    if (ENGINE_MENUS.rowDouble(t, how.lockText) !== 'edit-field') { return; }
+    e.preventDefault();
+    const s = window.getSelection();
+    if (s) { s.removeAllRanges(); }
+    log('double-click: ' + row.dataset.row + ' of ' + st.step_no);
+    open(key, row, how);
   }
 
   function menu(area, e) {
@@ -66,7 +87,11 @@ const APP_FIELD = (function () {
     const form = $('field-form');
     const close = () => { const box = $('field-row') || $('field-editor'); if (box) { box.remove(); } rowEl.hidden = false; };
     $('btn-fd-cancel').onclick = () => { close(); log('field editor cancelled: ' + row + ' of ' + step.step_no); };
-    form.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    /* Esc cancels; Enter saves in a one-line box, a list or a choice (build 70); in a box of several lines Enter starts a new line */
+    form.onkeydown = e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      if (e.key === 'Enter' && !e.isComposing && !e.shiftKey && e.target && /^(INPUT|SELECT)$/.test(e.target.tagName)) { e.preventDefault(); e.stopPropagation(); $('btn-fd-save').click(); }
+    };
     $('btn-fd-full').onclick = () => guard('ui fieldFull', async function () {
       const typed = RENDER_EDIT.readFields(form, fields);
       close();

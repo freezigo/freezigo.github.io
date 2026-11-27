@@ -10,8 +10,8 @@ const RENDER_FLOW_FORMS = (function () {
   const val = v => (v === null || v === undefined ? '' : (Array.isArray(v) ? v.join(', ') : String(v)));
   const LABEL = { name: 'Name', name_gu: 'Gujarati name', needs_sections: 'Needs sections', needs_sops: 'Needs SOPs', needs_setup: 'Set-up this shift',
     wait_after: 'Wait after section', wait_min: 'Wait minutes', any_time_steps: 'Any time steps', ends_with: 'Ends with', max_wait: 'Max wait',
-    restart_step: 'Restart step', manpower: 'Manpower', manpower_people: 'People', est_min: 'Est min', needs_note: 'Needs note', source_ref: 'Chart ref' };
-  const TYPED = ['name', 'name_gu', 'needs_sops', 'needs_setup', 'wait_after', 'wait_min', 'any_time_steps', 'ends_with', 'max_wait', 'restart_step', 'manpower', 'manpower_people', 'est_min', 'needs_note'];
+    restart_step: 'Restart step', manpower: 'Manpower', skilled: 'Skilled', helper: 'Helper', est_min: 'Est min', needs_note: 'Needs note', source_ref: 'Chart ref' };
+  const TYPED = ['name', 'name_gu', 'needs_sops', 'needs_setup', 'wait_after', 'wait_min', 'any_time_steps', 'ends_with', 'max_wait', 'restart_step', 'manpower', 'skilled', 'helper', 'est_min', 'needs_note'];
   const WIDE = ['ends_with', 'max_wait', 'manpower', 'needs_note'];
 
   /* sectionForm(sec, fieldDefs, locked): example_flow.md part 5; opens in the right pane (part 15) */

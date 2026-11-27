@@ -4,9 +4,10 @@
    fields a card row edits (cardFields), which tabs sit on the SOP line (topTabs), a
    pin turned on or off (pinToggle), the last reasons of the Reason pop-up
    (keepReason), whether the pop-up asks at all (reasonAsked, build 27; draft mode, build 36)
-   and the widths of the Flow columns (colWidths). Pure: the screens draw
-   what these return. Classic script (global ENGINE_MENUS); module in
-   Node. Answer key: tests/golden8.js, golden9.js, golden10.js and golden16.js. */
+   and the widths of the Flow columns (colWidths). Build 70: a double-click
+   on a card row (rowDouble) and the sign line (signLine). Pure: the screens
+   draw what these return. Classic script (global ENGINE_MENUS); module in
+   Node. Answer key: tests/golden8.js, golden9.js, golden10.js, golden16.js and golden42.js. */
 const ENGINE_MENUS = (function () {
   const I = (act, label) => ({ act: act, label: label });
   const DEFAULT_PINS = ['sections', 'flow', 'vn', 'release'];
@@ -83,6 +84,22 @@ const ENGINE_MENUS = (function () {
     if (t.link_mode === 'Standard') { return { title: title, items: [whole], lock: null, line: PR().lockedText(t) }; }
     if (!CARD_ROWS[t.row].length) { return { title: title, items: [whole], lock: null, line: NOT_TYPED[t.row] }; }
     return { title: title, items: [I('edit-field', 'Edit ' + t.row), whole], lock: null, line: null };
+  }
+
+  /* rowDouble(target, lockText) → 'edit-field' when a double-click on the row opens its editor (the row's menu has Edit <row>), else null
+     (a row not typed on the step, a Standard step, a locked revision): build 70, spec/example_job1_70.md part 2 */
+  function rowDouble(t, lockText) {
+    return fieldMenu(t, lockText).items.some(i => i.act === 'edit-field') ? 'edit-field' : null;
+  }
+
+  /* signLine(name, date) → "Divyal · 27 Nov": the name at the top and the day, one line in place of a typed name and date (build 70,
+     plan rule 3); date = YYYY-MM-DD or a time that starts with it */
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function signLine(name, date) {
+    if (name === null || name === undefined || String(name).trim() === '') { throw new Error('engine.signLine: no name'); }
+    const m = /^(\d{4})-(\d{2})-(\d{2})(T|$)/.exec(String(date || ''));
+    if (!m || Number(m[2]) < 1 || Number(m[2]) > 12 || Number(m[3]) < 1 || Number(m[3]) > 31) { throw new Error('engine.signLine: the date "' + date + '" is not YYYY-MM-DD'); }
+    return String(name).trim() + ' · ' + Number(m[3]) + ' ' + MONTHS[Number(m[2]) - 1];
   }
 
   /* pickedMenu(t, lockText): t = { kind: 'picked', chart: 'steps', nos } (2 or more steps picked with Ctrl+click, part 21.2): Club them,
@@ -172,6 +189,6 @@ const ENGINE_MENUS = (function () {
     return { b: b, c: fit(w.c, LEAST.c, room(b, LEAST.b)) };
   }
 
-  return { menuFor, cardFields, topTabs, pinToggle, keepReason, reasonAsked, draftReason, colWidths, DEFAULT_PINS, LEAST };
+  return { menuFor, cardFields, rowDouble, signLine, topTabs, pinToggle, keepReason, reasonAsked, draftReason, colWidths, DEFAULT_PINS, LEAST };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_MENUS;

@@ -8,7 +8,7 @@ const APP = (function () {
   const state = { editor: null, tables: null, files: null, sop_id: null, tab: null, section: null, folderName: null,
     builtOnly: true, vnFilter: { state: 'open', section: '' }, glossaryFind: '', pictureUrls: {}, accepts: {}, rightsMode: null,
     viewOnly: false, me: null,   /* build 52: viewOnly = the page inside the Freezigo app (spec/example_online.md part 6); me = the login */
-    online: false, master: null, viewLine: null, fileUrls: null };   /* build 56 (spec/example_edit_online.md): online = the page inside the
+    online: false, master: null, viewLine: null, fileUrls: null, contractLine: null };   /* build 56 (spec/example_edit_online.md): online = the page inside the
     Freezigo app; viewOnly there unless editRights lets the login edit (the edit role, switch day come); viewLine = the line of a view-only
     page; fileUrls = the links to the files online */
 
@@ -25,14 +25,16 @@ const APP = (function () {
       /* build 52: the page inside the Freezigo app: the login's name, View only (build 56: or Editing online), the way back to the
          Freezigo app; no folder, no name to pick */
       $('topbar').innerHTML = RENDER.topBarOnline(CONFIG, state.me, !state.viewOnly);
-      if ($('btn-home')) { $('btn-home').onclick = function () { guard('ui home', showSopList); }; }
+      /* build 69: the database has another data layout: the line says why the page only reads */
+      if (state.contractLine) { $('topbar').insertAdjacentHTML('beforeend', ' <span class="layout-line" id="layout-line">' + RENDER.esc(state.contractLine) + '</span>'); }
+      if ($('btn-home')) { $('btn-home').onclick = function (e) { e.preventDefault(); guard('ui home', showSopList); }; }
       return;
     }
     $('topbar').innerHTML = RENDER.topBar(CONFIG, STORE.status(), state.folderName, state.editor, SETS.editor);
     if (state.viewOnly) { $('topbar').insertAdjacentHTML('beforeend', ' <span class="tag view-tag" id="archive-tag" title="' + RENDER.esc(state.viewLine || '') + '">Archive: reads only</span>'); }   /* build 57 */
     $('btn-pick').onclick = function () { guard('ui pickFolder', pickFolder); };
     $('btn-open').onclick = function () { guard('ui openFolder', openFolder); };
-    $('btn-home').onclick = function () { guard('ui home', showSopList); };
+    $('btn-home').onclick = function (e) { e.preventDefault(); guard('ui home', showSopList); };   /* build 71: the SOPs link of the top bar */
     /* build 50: the name at the top is the login; it is kept in this browser, and the page is drawn again for the new name */
     $('editor').onchange = function (e) {
       state.editor = e.target.value;
@@ -122,6 +124,7 @@ const APP = (function () {
       try { await ONLINE.save(state.tables, after); }
       catch (e) { await guard('ui online reload', reloadOnline); await guard('ui redraw', redraw); throw new Error('ui writeTables: ' + e.message); }
       await reloadOnline();
+      drawTabs(false);   /* build 70: Undo on the SOP line follows every save */
       APP_SYNC.afterWrite(tables, beforeMax);
       return;
     }
@@ -130,6 +133,7 @@ const APP = (function () {
       await STORE.writeTable(name, tables[name], 'Builder build ' + CONFIG.builder_build + ' (' + ctx.who + ')', ctx.now);
       state.tables[name] = tables[name];
     }
+    drawTabs(false);   /* build 70: Undo on the SOP line follows every save */
     APP_SYNC.afterWrite(tables, beforeMax);
   }
   function needData(place) {
@@ -140,6 +144,7 @@ const APP = (function () {
     needData('showSopList');
     state.sop_id = null; state.section = null; state.tab = null;
     document.body.classList.remove('tab-flow', 'flow-big');
+    if ($('crumb-rest')) { $('crumb-rest').innerHTML = ''; }   /* build 71: the top bar ends at SOPs */
     console.log('[ui → engine] sopList');
     const view = ENGINE.sopList({ tables: state.tables, files: state.files });
     console.log('[engine → ui] sopList: ' + view.rows.length + ' SOPs');
@@ -182,8 +187,17 @@ const APP = (function () {
     view.notes_open = ENGINE_CHART.notesOpen({ tables: state.tables, sop_id: sopId });
     state.sop_id = sopId; state.view = view; state.section = null;
     view.texts_count = APP_TEXTS.list().length;   /* the count on the Texts to check tab (build 40) */
+    /* build 71 (spec/example_job4_71.md): the words of the SOP line, the copies of a main SOP, whether a header row opens its form, and
+       what the person opened last ("+ details", "+ more fields") */
+    view.line = ENGINE_LINE.sopLine({ sop: view.sop, rev: view.rev, copy: view.copy, rights: view.rights, release: view.release, draft_mode: view.draft_mode,
+      floor_rev: view.floor_rev, main_changes: view.main_changes, online: state.online, editing: state.online && !state.viewOnly, who: state.editor });
+    view.copy_rows = view.copy ? [] : ENGINE_LINE.copyRows(state.tables, sopId, state.editor);
+    view.hdr_edit = !!view.rev && !view.lock_text && !state.viewOnly;
+    view.details_open = APP_LINE.kept('details'); view.hdr_open = APP_LINE.kept('hdr');
     main().innerHTML = RENDER.sopPage(view);
+    if ($('crumb-rest')) { $('crumb-rest').innerHTML = RENDER.crumbRest(view.line); }
     APP_SYNC.wireTags(main());
+    APP_LINE.wire();
     await showTab(tab || 'header');
   }
 
@@ -195,23 +209,36 @@ const APP = (function () {
   }
   function pinsKeep(list) { try { window.localStorage.setItem(PINS_KEY, JSON.stringify(list)); } catch (e) { /* private window: the pins last this visit */ } }
   function pinned() { return state.pins || pinsKept() || ENGINE_MENUS.DEFAULT_PINS.slice(); }
+  /* undoState() → ENGINE_UNDO.undoPlan for the name at the top on the open SOP, or null where the page does not change it (build 70) */
+  function undoState() {
+    const v = state.view;
+    if (!v || !v.rev || v.lock_text || state.viewOnly || !state.tables || !state.sop_id || !state.tables.sops.some(s => s.sop_id === state.sop_id)) { return null; }
+    return ENGINE_UNDO.undoPlan(state.tables, state.sop_id, state.editor);
+  }
+  /* undo(): the last change of the name at the top on this SOP, back; no pop-up (the reason is the undo's own); the same tab again */
+  async function undo() {
+    needData('undo');
+    const ctx = { who: state.editor, now: nowIso(), next_hist_id: await STORE.nextId('history', 'hist_id'), reason: null };
+    console.log('[ui → engine] undoLast ' + state.sop_id + ' by ' + ctx.who);
+    const r = ENGINE_UNDO_MAIN.undoLast({ tables: state.tables, sop_id: state.sop_id, ctx: ctx });
+    if (r.refusals) { throw new Error('ui undo: ' + r.refusals.map(x => x.message).join(' · ')); }
+    console.log('[engine → ui] undoLast: ' + r.label + ', ' + r.new_history.length + ' History rows');
+    await writeTables(r.tables, r.ctx);
+    await redraw();
+  }
   function drawTabs(menuOpen) {
     const box = $('tabs');
     if (!box || !state.view) { return; }
     box.innerHTML = RENDER.tabsLine(state.view, ENGINE_MENUS.topTabs(TAB_IDS, pinned(), state.tab), pinned(), !!menuOpen);
+    /* build 70: Undo, drawn with the SOP line (on every tab and after every save); build 71: in the SOP line's actions */
+    if ($('undo-slot')) {
+      $('undo-slot').innerHTML = RENDER.undoButton(undoState());
+      if ($('btn-undo')) { $('btn-undo').onclick = function () { guard('ui undo', undo); }; }
+    }
     for (const b of box.querySelectorAll('.tab')) { b.onclick = function () { guard('ui showTab', function () { return showTab(b.dataset.tab); }); }; }
     $('btn-tabs').onclick = function (e) { e.stopPropagation(); drawTabs($('tab-menu').hidden); };
     for (const b of box.querySelectorAll('.tm-open')) { b.onclick = function () { guard('ui showTab', function () { return showTab(b.dataset.tab); }); }; }
-    if ($('btn-quick-copy')) {
-      $('btn-quick-copy').onclick = function () {
-        guard('ui quickCopy', async function () {
-          if (state.tab !== 'header') { await showTab('header'); }
-          const card = document.querySelector('.copy-save');
-          card.scrollIntoView({ block: 'center' });
-          $('cp-name').focus();
-        });
-      };
-    }
+    APP_LINE.wireMenu(box);   /* build 71: ☰ Another copy, Delete this copy */
     for (const b of box.querySelectorAll('.tm-pin')) {
       b.onclick = function (e) {
         e.stopPropagation();
@@ -254,6 +281,7 @@ const APP = (function () {
         APP_COPIES.wire(body);
         APP_SYNC.wireCard(body);
         APP_LISTS.wire(body);
+        APP_LINE.wireHeader(body);   /* build 71: + more fields, the copies door, a double-click on a row */
         break;
       case 'floor':
         body.innerHTML = T.floorTab(view);
@@ -309,10 +337,12 @@ const APP = (function () {
         const keep = function (no) { kept[no] = { on: $('acc-tick-' + no).checked, reason: $('acc-reason-' + no).value }; };
         for (const t of body.querySelectorAll('.acc-tick')) { t.onchange = function () { keep(t.dataset.no); }; }
         for (const r of body.querySelectorAll('.acc-reason')) { r.oninput = function () { keep(r.dataset.no); }; }
-        /* the name of a sign: online the login's (build 59), on the PC the one picked from the list */
+        /* the name of a sign: online the login's (build 59), on the PC the one picked from the list; the date: online today, one line with
+           the name (build 70, spec/example_job1_70.md part 1), on the PC the date box */
         const signName = id => (view.sign_state ? state.me.name : $(id).value);
-        if ($('btn-sign-checked')) { $('btn-sign-checked').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('checked', signName('sg-check-name'), $('sg-check-date').value); }); }; }
-        if ($('btn-sign-approved')) { $('btn-sign-approved').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('approved', signName('sg-appr-name'), $('sg-appr-date').value); }); }; }
+        const signDate = id => ($(id) ? $(id).value : nowIso().slice(0, 10));
+        if ($('btn-sign-checked')) { $('btn-sign-checked').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('checked', signName('sg-check-name'), signDate('sg-check-date')); }); }; }
+        if ($('btn-sign-approved')) { $('btn-sign-approved').onclick = function () { guard('ui sign', function () { return APP_ACTIONS.sign('approved', signName('sg-appr-name'), signDate('sg-appr-date')); }); }; }
         if ($('btn-walk')) { $('btn-walk').onclick = function () { guard('ui walk', APP_ACTIONS.addWalk); }; }
         if ($('btn-release')) { $('btn-release').onclick = function () { guard('ui release', APP_ACTIONS.release); }; }
         for (const f of body.querySelectorAll('.fail-click')) {
@@ -415,12 +445,16 @@ const APP = (function () {
       state.switch = ENGINE_ONLINE.switchState(await ONLINE.masterRow());   /* build 57: who switched, and when */
       state.master = state.switch.master;
       const er = ENGINE_ONLINE.editRights(state.me, state.master);
-      state.viewOnly = !er.can_edit;
-      state.viewLine = er.line;
+      /* build 69 (spec/example_people_69.md part 6): a database of another data layout: view only, read with the fields this page does
+         not know left out */
+      state.contractLine = ENGINE_ONLINE.contractLine(await ONLINE.dbContract());
+      state.viewOnly = !er.can_edit || !!state.contractLine;
+      state.viewLine = state.contractLine || er.line;
       document.body.classList.toggle('view-only', state.viewOnly);
       document.body.classList.toggle('online-edit', !state.viewOnly);
       console.log('[online → ui] master ' + state.master + ': ' + (state.viewOnly ? 'view only' : 'editing online'));
-      const data = await ONLINE.loadAll();
+      if (state.contractLine) { console.log('[online → ui] ' + state.contractLine); }
+      const data = await ONLINE.loadAll(!!state.contractLine);
       state.fileUrls = data.files;
       STORE.useOnline(data, { edit: !state.viewOnly, maxNo: ONLINE.maxNo, putFile: ONLINE.putFile });
       state.tables = await STORE.readAll();
@@ -439,7 +473,7 @@ const APP = (function () {
   const STORE_FILES = () => Object.assign({}, state.fileUrls || {}, STORE.fileLinks ? STORE.fileLinks() : {});
   /* build 56: reloadOnline() → the newest tables from the database (after a save, or a refused one); the links to the files stay */
   async function reloadOnline() {
-    const d = await ONLINE.loadTables();
+    const d = await ONLINE.loadTables(!!state.contractLine);
     STORE.useOnline({ tables: d.tables, files: STORE_FILES() }, { edit: !state.viewOnly, maxNo: ONLINE.maxNo, putFile: ONLINE.putFile });
     state.tables = await STORE.readAll();
     console.log('[online → ui] newest data: ' + Object.keys(state.tables).length + ' tables');

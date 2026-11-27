@@ -68,18 +68,25 @@ const ONLINE = (function () {
   }
   /* loadTables() → { tables }: every table as the Builder keeps it, rows in the order kept online (sop_row_order); the tables are
      read at the same time (build 56: again after each save) */
-  async function loadTables() {
+  async function loadTables(loose) {
     const order = {};
     for (const r of await selectAll('sop_row_order')) { order[r.tbl] = r.keys; }
     const rows = await Promise.all(CONFIG.tables.map(n => selectAll(ENGINE_ONLINE.dbTable(n))));
     const tables = {};
-    CONFIG.tables.forEach(function (n, i) { tables[n] = ENGINE_ONLINE.inOrder(n, ENGINE_ONLINE.fromOnline(n, rows[i]), order[n]); });
+    CONFIG.tables.forEach(function (n, i) { tables[n] = ENGINE_ONLINE.inOrder(n, ENGINE_ONLINE.fromOnline(n, rows[i], loose), order[n]); });
     return { tables: tables };
+  }
+  /* dbContract() → the database's data layout (sop_meta contract_version), or null when it cannot be read (build 69: the guard,
+     spec/example_people_69.md part 6) */
+  async function dbContract() {
+    const r = await get().from(ENGINE_ONLINE.dbTable('meta')).select('contract_version').limit(1);
+    if (r.error) { console.log('[online] sop_meta: ' + r.error.message); return null; }
+    return r.data && r.data[0] ? r.data[0].contract_version : null;
   }
   /* loadAll() → { tables, files }: every table as the Builder keeps it, rows in the order of the PC files; files = { path: link for
      12 hours } */
-  async function loadAll() {
-    const tables = (await loadTables()).tables;
+  async function loadAll(loose) {
+    const tables = (await loadTables(loose)).tables;
     const files = {};
     const paths = (await listOnline()).map(f => f.path);
     for (let i = 0; i < paths.length; i += 100) {
@@ -180,7 +187,7 @@ const ONLINE = (function () {
     const s = ENGINE_ONLINE.saveChanges(before, after);
     if (!s.tables.length) { return { saved: 0, by: null }; }
     console.log('[online] save: ' + s.changes.length + ' rows (' + s.tables.join(', ') + ')');
-    const r = await get().rpc('sop_save', { p: { changes: s.changes, order: s.order } });
+    const r = await get().rpc('sop_save', { p: { changes: s.changes, order: s.order, contract: s.contract } });   /* build 69: the page's data layout */
     if (r.error) { throw new Error(r.error.message); }
     return r.data;
   }
@@ -275,7 +282,7 @@ const ONLINE = (function () {
     return { tables: CONFIG.tables.length, rows: rows, files: files.length };
   }
 
-  return { useClient, session, onSignedOut, me, loadTables, loadAll, listOnline, putOnline, tableHash, master, maxNo, save,
+  return { useClient, session, onSignedOut, me, loadTables, loadAll, dbContract, listOnline, putOnline, tableHash, master, maxNo, save,
     masterRow, putFile, switchTo, sameAsFolder, putNewFiles, saveAsFolder };
 })();
 if (typeof module !== 'undefined') module.exports = ONLINE;

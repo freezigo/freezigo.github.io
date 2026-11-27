@@ -273,7 +273,7 @@ const APP_FLOW = (function () {
   async function headerField(field) {
     const label = field === 'output_to' ? 'Output to' : 'Input from';
     await APP.showTab('header');
-    if ($('btn-header-edit') && !$('header-form') && !$('row-form')) { $('btn-header-edit').click(); }
+    if (state.view && state.view.hdr_edit && !$('header-form') && !$('row-form')) { APP_LISTS.openHeader(); }   /* build 71: no Edit the header button */
     const el = document.querySelector('#hd-form [name="' + field + '"]');
     if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); log('ui', 'header form at ' + field); return; }
     const row = document.querySelector('table.kv tr[data-row="' + label + '"]');

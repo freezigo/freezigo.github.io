@@ -1,10 +1,10 @@
 /* SOP Builder logic pieces for the online tables (spec/example_online.md part 4, build 51; Samrat 2026-11-16: the SOP App goes online
-   inside the ERP Supabase project): the contract's tables (schema/types.js, contract 1.6) under the same names with "sop_" in front,
+   inside the ERP Supabase project): the contract's tables (schema/types.js, contract 1.7 since build 69) under the same names with "sop_" in front,
    the same fields, the contract's keys (meta: one row, id 1). dbTable, dbKey, sqlType, columnsOf, tableSql (the table), importRows
    (the rows as they go online: every field, sops with the owner), importSql (put a table online again, re-runnable). Pure: the SQL is
    text; tools/online_sql.js writes it and a session runs it. Classic script (global ENGINE_ONLINE); module in Node. Answer key:
    tests/golden29.js; build 52 to 54 tests/golden30.js; build 56 (editing online: saveChanges, editRights, saveLine, seenWhat)
-   tests/golden32.js. */
+   tests/golden32.js; build 69 (contract 1.7: asContract, the guard's contractLine) tests/golden41.js. */
 const ENGINE_ONLINE = (function () {
   const TYPESX = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
   const RT = (typeof ENGINE_RIGHTS !== 'undefined') ? ENGINE_RIGHTS : require('./rights.js');
@@ -52,13 +52,25 @@ const ENGINE_ONLINE = (function () {
     const lines = columnsOf(name).map(c => '  ' + c.quoted + ' ' + c.sql + (key.indexOf(c.name) >= 0 ? ' not null' : '') + (c.name === 'id' && name === 'meta' ? ' default 1 check (id = 1)' : ''));
     return 'create table if not exists public.' + dbTable(name) + ' (\n' + lines.join(',\n') + ',\n  primary key (' + key.map(quote).join(', ') + ')\n);';
   }
+  /* asContract(name, rows) → the rows without the fields the table no longer has (build 69, contract 1.7: sections.manpower_people;
+     TYPES.removed): an older file or row reads as this contract; every other field as it is */
+  function asContract(name, rows) {
+    const gone = (TYPESX.removed && TYPESX.removed[name]) || [];
+    if (!gone.length) { return rows; }
+    return (rows || []).map(function (r) {
+      if (!gone.some(k => k in r)) { return r; }
+      const o = {};
+      for (const k of Object.keys(r)) { if (gone.indexOf(k) < 0) { o[k] = r[k]; } }
+      return o;
+    });
+  }
   /* importRows(tables, name) → the rows of a table as they go online: every field of the contract in its order (null when missing), a
      copy with its owner (ownerOf: the field, else its "added: copy" History row; 1.6), meta with id 1 and the contract of the tables
      online (a file not yet moved by tools/migrate_1_6.py still says 1.4 or 1.5); a field outside the contract stops it */
   function importRows(tables, name) {
     const d = defOf(name, 'importRows');
     const fields = d.fields.map(f => f.name);
-    const rows = Array.isArray(tables[name]) ? tables[name] : fail('importRows', 'table ' + name + ' is missing');
+    const rows = Array.isArray(tables[name]) ? asContract(name, tables[name]) : fail('importRows', 'table ' + name + ' is missing');
     return rows.map(function (r) {
       for (const k of Object.keys(r)) {
         if (fields.indexOf(k) < 0) { fail('importRows', name + ' ' + (d.key.length ? d.key.map(x => r[x]).join(' ') : 'row') + ': ' + k + ' is not a field of the contract'); }
@@ -136,15 +148,16 @@ const ENGINE_ONLINE = (function () {
 
   /* ---- build 52: the view-only page and Put this PC's data online (example_online.md part 6; answer key tests/golden30.js) ---- */
   const CFG = () => ((typeof CONFIG !== 'undefined') ? CONFIG : require('../config.js'));
-  /* fromOnline(name, rows) → the rows as the Builder keeps them (as the PC files hold them): every field of the contract in its order,
-     null when the row online has none; meta without its id; a field outside the contract stops it */
-  function fromOnline(name, rows) {
+  /* fromOnline(name, rows, loose) → the rows as the Builder keeps them (as the PC files hold them): every field of the contract in its
+     order, null when the row online has none; meta without its id; a field the table no longer has is left out (asContract); a field
+     outside the contract stops it, unless loose (build 69: the database has another layout and the page only reads: the field is left out) */
+  function fromOnline(name, rows, loose) {
     const d = defOf(name, 'fromOnline');
     const fields = d.fields.map(f => f.name);
-    return (rows || []).map(function (r) {
+    return asContract(name, rows || []).map(function (r) {
       for (const k of Object.keys(r)) {
         if (k === 'id' && !d.key.length) { continue; }
-        if (fields.indexOf(k) < 0) { fail('fromOnline', name + ' ' + (d.key.length ? d.key.map(x => r[x]).join(' ') : 'row') + ': ' + k + ' is not a field of the contract'); }
+        if (fields.indexOf(k) < 0 && !loose) { fail('fromOnline', name + ' ' + (d.key.length ? d.key.map(x => r[x]).join(' ') : 'row') + ': ' + k + ' is not a field of the contract'); }
       }
       const out = {};
       for (const f of fields) { out[f] = r[f] === undefined ? null : r[f]; }
@@ -220,6 +233,13 @@ const ENGINE_ONLINE = (function () {
      line of the login (build 56: "View only: Vishal reads the SOPs but does not change them."), else VIEW_LINE */
   const VIEW_LINE = 'View only: changes are made in the SOP Builder on Samrat\'s PC. Editing online comes later.';
   function viewRights(line) { return { kind: 'view', owner: null, can_change: false, read_only: true, lock_text: empty(line) ? VIEW_LINE : line, tag: 'View only' }; }
+  /* contractLine(dbVersion) → null when the database's data layout (sop_meta contract_version) is the page's; else the line of the
+     view-only page (build 69, spec/example_people_69.md part 6: the page never writes into a layout it does not know) */
+  function contractLine(dbVersion) {
+    if (dbVersion === TYPESX.version) { return null; }
+    return 'View only: the database has data layout ' + (empty(dbVersion) ? '(none)' : dbVersion) + ' and this page ' + TYPESX.version +
+      '. Reload the page in a few minutes, when the update is done.';
+  }
 
   /* ---- build 56: editing online (spec/example_edit_online.md; answer key tests/golden32.js) ---- */
   /* editRights(me, master) → { can_edit, line }: the page inside the Freezigo app edits for a login with the edit role once switch
@@ -256,7 +276,9 @@ const ENGINE_ONLINE = (function () {
     preparer: 'Not saved: the preparer ({v}) does not check.',
     check_first: 'Not saved: Checked by and the check date are needed before approval.',
     copy_sign: 'Not saved: a copy is not signed or released: make it the good version first (Header tab).',
-    new_rev: 'Not saved: a new revision starts as a Draft with no sign-offs.'
+    new_rev: 'Not saved: a new revision starts as a Draft with no sign-offs.',
+    /* build 69 (spec/example_people_69.md part 6): a page of another data layout ({v}: the database's) */
+    contract: 'Not saved: this page does not match the database\'s data layout ({v}). Reload the page.'
   };
   /* saveLine(kind, value) → the line of sop_save */
   function saveLine(kind, value) {
@@ -270,12 +292,13 @@ const ENGINE_ONLINE = (function () {
     return LIST_NAMES[table] || 'the ' + table.charAt(0).toUpperCase() + table.slice(1).replace(/_/g, ' ');
   }
   const noNulls = r => { const o = {}; for (const k of Object.keys(r)) { if (r[k] !== null && r[k] !== undefined) { o[k] = r[k]; } } return o; };
-  /* saveChanges(before, after) → { changes: [{ t, op, key, row, was }], order: { table: [keys] }, tables: [names] }: one save as it goes
+  /* saveChanges(before, after) → { changes: [{ t, op, key, row, was }], order: { table: [keys] }, tables: [names], contract }: one save as it goes
      to sop_save. Both are every table as the Builder keeps them; the rows are compared as they go online (importRows): insert = a
      key the page did not have (row), update = same key, another row (row and was, the row before), delete = a key the page no longer
      has (was); a row goes without its empty fields. The tables in the order of the contract; in a table the rows in the page's order,
      the rows taken out last. order: the keys of a table in the page's order, where they changed (sop_save keeps the order of the rows
-     online). tables: the tables with a change or a new order. The same key twice in a table stops it */
+     online). tables: the tables with a change or a new order. contract (build 69): the page's data layout, which sop_save checks. The
+     same key twice in a table stops it */
   function saveChanges(before, after) {
     const b = payload(before), a = payload(after);
     const changes = [], order = {}, tables = [];
@@ -308,7 +331,7 @@ const ENGINE_ONLINE = (function () {
       }
       if (changes.length > before0 || moved) { tables.push(n); }
     }
-    return { changes: changes, order: order, tables: tables };
+    return { changes: changes, order: order, tables: tables, contract: TYPESX.version };   /* build 69: the page's data layout (sop_save step 2b) */
   }
 
   /* ---- build 57: files online and switch day (spec/example_edit_online.md part 9; answer key tests/golden33.js) ---- */
@@ -368,8 +391,8 @@ const ENGINE_ONLINE = (function () {
     return { path: ARCHIVE_FILE, text: JSON.stringify(o, null, 1) + '\n' };
   }
 
-  return { dbTable, dbKey, sqlType, columnsOf, tableSql, importRows, importSql, dbRowText, dbHashSql, fromOnline, inOrder, payload, hashDiff,
-    editDirs, fileDirs, fileJobs, viewRights, editRights, saveLine, seenWhat, saveChanges, newFileJobs, indiaDate, switchState, archiveNote, archiveFile,
+  return { dbTable, dbKey, sqlType, columnsOf, tableSql, asContract, importRows, importSql, dbRowText, dbHashSql, fromOnline, inOrder, payload, hashDiff,
+    editDirs, fileDirs, fileJobs, viewRights, contractLine, editRights, saveLine, seenWhat, saveChanges, newFileJobs, indiaDate, switchState, archiveNote, archiveFile,
     PREFIX, VIEW_LINE, SAVE_LINES, ARCHIVE_FILE };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_ONLINE;

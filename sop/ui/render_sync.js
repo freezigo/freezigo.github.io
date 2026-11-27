@@ -89,7 +89,7 @@ const RENDER_SYNC = (function () {
     const n = v.changes.length;
     let h = '<div class="card sync-card" id="sync-card"><b>Changes in ' + esc(v.main_id) + ' since this copy was saved</b> <span class="muted" id="sync-count">' +
       (n ? n + ' to decide' : 'none to decide') + '</span>';
-    if (!n) { return h + '<p class="muted">No change in ' + esc(v.main_id) + ' waits for this copy.</p></div>'; }
+    if (!n) { return ''; }   /* build 71 (plan 4.6, rule 6): nothing when there is nothing */
     for (const p of v.changes) {
       h += '<div class="sync-change" data-change="' + p.change_id + '"><div class="sync-head">' + head(p, null) + '</div><div class="sync-reason">Reason: ' + esc(p.reason) + '</div>' +
         body(p, cardWords(p), null) + '</div>';
@@ -97,7 +97,8 @@ const RENDER_SYNC = (function () {
     return h + '<div class="note">Apply makes the same change in this copy; Skip leaves the copy as it is. Each is written to the History of the copy. The main SOP does not change.</div></div>';
   }
   /* tag(n): the words on the copy's SOP line and SOP list row */
-  const tag = (n, sopId) => (n ? '<a href="#" class="sync-tag" data-sop="' + esc(sopId) + '" title="Open the list on the Header tab">' + n + ' main change' + (n === 1 ? '' : 's') + ' to decide</a>' : '');
+  /* build 71 (plan 4.6): the words of ENGINE_LINE.sopLine's changes, as a door */
+  const tag = (n, sopId) => (n ? '<a href="#" class="sync-tag" data-sop="' + esc(sopId) + '" title="Open the list on the Header tab">' + n + (n === 1 ? ' change' : ' changes') + ' in the main SOP to decide ▸</a>' : '');
 
   return { syncPop, changesCard, body, confirmStrip, popWords, cardWords, tag, when };
 })();

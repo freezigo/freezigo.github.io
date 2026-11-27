@@ -1,4 +1,4 @@
-/* SOP App contract 1.6: SOP tables (machine version of schema/contract.md
+/* SOP App contract 1.7: SOP tables (machine version of schema/contract.md
    parts 3 and 4). Every field: name, type, req (required), note and
    example (shown under the input on Builder screens). Types: text, int,
    number, bool, date, datetime, list_text, list_int, set (with set name).
@@ -63,6 +63,9 @@ const TYPES = (function () {
     f('max_wait', 'text', false, 'Longest wait before the next section, or No limit.', 'No limit'),
     f('restart_step', 'text', false, 'Where to start again if the section stops halfway.', '9.1 (the full test)'),
     f('manpower', 'text', false, 'People needed, in words.', '2 to stand the tank on blocks (9.4)'),
+    /* contract 1.7 (Vishal 2026-11-27, spec/example_people_69.md): the crew as two whole numbers; empty = not given, 0 = a real zero */
+    f('skilled', 'int', false, 'Skilled people for the section (the chart\'s employee): welder, fitter, inspector. A whole number, 0 or more. Empty = not given yet.', '1', { min: 0 }),
+    f('helper', 'int', false, 'Helpers for the section. A whole number, 0 or more: 0 = no helper. Empty = not given yet.', '1', { min: 0 }),
     f('est_min', 'number', false, 'Minutes for the section. Empty when not given.', '45'),
     f('needs_sections', 'list_int', false, 'Sections of this SOP finished first. Set by the arrows on the Flow tab; the build 15 import fills only empty ones.', '7, 8'),
     f('needs_sops', 'list_text', false, 'SOP IDs whose output is needed first, comma between. Each must be on the SOP list.', 'BMC-L0-LASERCUT-02, BMC-L0-BOUGHT-01'),
@@ -70,7 +73,6 @@ const TYPES = (function () {
     f('wait_after', 'int', false, 'This section starts at least Wait minutes after that section ends. That section must be in Needs sections.', '10'),
     f('wait_min', 'number', false, 'The minutes of that wait.', '20 (20 min after the coat)'),
     f('any_time_steps', 'list_text', false, 'Steps of this section that may be done before the Needs are met, comma between.', '8.1, 8.2'),
-    f('manpower_people', 'int', false, 'Number of people.', '2'),
     f('source_ref', 'text', false, 'Box reference in the chart file this section came from. Empty when the section did not come from a chart.', 'AC01')
   ]) };
 
@@ -273,13 +275,17 @@ const TYPES = (function () {
   ]) };
 
   tables.meta = { key: [], fields: [
-    f('contract_version', 'text', true, 'Contract this data follows.', '1.6'),
+    f('contract_version', 'text', true, 'Contract this data follows.', '1.7'),
     f('data_build', 'int', true, 'Master build the data came from.', '14'),
     f('imported_at', 'datetime', true, 'When the import ran.', '2026-11-05T18:30:00+05:30'),
     f('import_note', 'text', true, 'What the import did.', '116 keys, 16 sections'),
     f('builder_build', 'int', true, 'Builder build number that last wrote the data.', '0')
   ] };
 
-  return { version: '1.6', tables: tables };
+  /* fields a table had before and has no more (1.7: manpower_people, replaced by skilled and helper): an older file or row reads
+     without them (engine/online.js asContract) */
+  const removed = { sections: ['manpower_people'] };
+
+  return { version: '1.7', tables: tables, removed: removed };
 })();
 if (typeof module !== 'undefined') module.exports = TYPES;

@@ -2,10 +2,10 @@
    written into code elsewhere. Classic script (global CONFIG). */
 const CONFIG = {
   app_name: 'SOP Builder',
-  builder_build: 68,           // raise by one on every delivery
+  builder_build: 71,           // raise by one on every delivery
   floor_build: 0,              // Floor App, from S3
-  contract: '1.6',
-  contract_reads: ['1.3', '1.4', '1.5', '1.6'], // an older file reads as 1.6 (the new fields empty) until tools/migrate_1_6.py adds them; every write says 1.6
+  contract: '1.7',
+  contract_reads: ['1.3', '1.4', '1.5', '1.6', '1.7'], // an older file reads as 1.7 (the new fields empty, manpower_people left out: TYPES.removed); every write says 1.7
   data_dir: 'data',            // JSON tables, under the SOP App folder
   photos_dir: 'source/Photos',
   source_dir: 'source', // reference photos named by key

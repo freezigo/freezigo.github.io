@@ -3,7 +3,8 @@
    chartPlan, sopFromChart; the chart is read, never written) or started
    blank (example_new_sop.md parts 4 and 5: sopBlank). Pure. Classic
    script (global ENGINE_KICK); module in Node. Answer key:
-   tests/golden7.js, tests/golden10.js. */
+   tests/golden7.js, tests/golden10.js; build 69 (chartPeople: Skilled, Helper, Est min) tests/golden41.js; build 70 (crewWords: the
+   Manpower words) tests/golden42.js. */
 const ENGINE_KICK = (function () {
   const E = (typeof ENGINE_EDIT !== 'undefined') ? ENGINE_EDIT : require('./edit.js');
   const R = (typeof ENGINE_RELEASE !== 'undefined') ? ENGINE_RELEASE : require('./release.js');
@@ -31,13 +32,35 @@ const ENGINE_KICK = (function () {
       groups: Object.keys(counts).sort().map(g => ({ group: g, count: counts[g] })) };
   }
 
-  function manpowerOf(n) {
-    const e = int(n.employee), h = int(n.helper);
+  /* chartPeople(box) → { skilled, helper, est_min }: what a chart box gives a section (build 69, spec/example_people_69.md part 3; Vishal
+     2026-11-27): a box with 0 minutes gives nothing (it was not filled in on the chart); else employee → skilled, helper → helper,
+     minutes → est_min; a blank, or not a whole number of 0 or more, gives nothing for that field ("0" is a real zero) */
+  const whole = v => {
+    if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) { return null; }
+    const n = typeof v === 'number' ? v : (/^\s*\d+\s*$/.test(String(v)) ? Number(v) : NaN);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  };
+  function chartPeople(n) {
+    const m = int(n && n.minutes);
+    if (!m) { return { skilled: null, helper: null, est_min: null }; }
+    return { skilled: whole(n.employee), helper: whole(n.helper), est_min: m };
+  }
+  /* crewWords(box) → the Manpower words a chart box gives (build 70, spec/example_job1_70.md part 4; Vishal 2026-11-27 evening, decisions
+     doc section 3): the employee as "1 SS welding" when the box has a skill text, else "1 employee"; the helper as "1 helper"; joined by
+     " + " ("1 SS welding + 1 helper"); 0 helper: "1 SS welding"; 0 employee: "1 helper"; both 0: "0 people"; null when the box gives no
+     people (0 minutes, or both blank). The numbers are chartPeople's. */
+  function crewWords(n) {
+    const v = chartPeople(n);
+    if (v.skilled === null && v.helper === null) { return null; }
     const parts = [];
-    if (e) { parts.push(plural(e, 'employee')); }
-    if (h) { parts.push(plural(h, 'helper')); }
-    if (!parts.length) { return { text: NEEDED, people: null }; }
-    return { text: parts.join(' + ') + (empty(n.skill) ? '' : ' (' + String(n.skill).trim() + ')'), people: e + h };
+    if (v.skilled) { parts.push(empty(n.skill) ? plural(v.skilled, 'employee') : v.skilled + ' ' + String(n.skill).trim()); }
+    if (v.helper) { parts.push(plural(v.helper, 'helper')); }
+    return parts.length ? parts.join(' + ') : '0 people';
+  }
+  /* manpowerOf(box) → { text, skilled, helper, est_min }: the Manpower words of the section (crewWords, or [VALUE NEEDED: Divyal]) */
+  function manpowerOf(n) {
+    const w = crewWords(n);
+    return Object.assign({ text: w === null ? NEEDED : w }, chartPeople(n));
   }
   const waitMin = n => (int(n.wait) ? int(n.wait) * (n.wait_unit === 'hr' ? 60 : 1) : 0);
 
@@ -85,7 +108,7 @@ const ENGINE_KICK = (function () {
       if (b.secOf[n.id] !== undefined) {
         const s = b.secOf[n.id], mp = manpowerOf(n);
         const needs = b.predsOf(n.id).filter(p => b.secOf[p] !== undefined).map(p => b.secOf[p]).sort((x, y) => x - y);
-        let text = 'Section ' + s + (isPickUp(n) ? ' (Incoming check)' : '') + ': ' + mp.text + ', ' + (int(n.minutes) ? int(n.minutes) + ' min' : 'Est min needed');
+        let text = 'Section ' + s + (isPickUp(n) ? ' (Incoming check)' : '') + ': ' + mp.text + ', ' + (mp.est_min ? mp.est_min + ' min' : 'Est min needed');
         if (needs.length) { text += ', needs ' + needs.join(', '); }
         for (const p of b.predsOf(n.id)) { const pb = b.byId[p]; if (waitMin(pb) && b.secOf[p] !== undefined) { text += ', ' + waitMin(pb) + ' min after ' + b.secOf[p]; } }
         if (waitMin(n)) {
@@ -165,7 +188,7 @@ const ENGINE_KICK = (function () {
       for (const f of SEC_FIELDS) { row[f] = null; }
       const mp = manpowerOf(n);
       return Object.assign(row, { sop_id: sop.sop_id, rev: rev, section: b.secOf[n.id], name: isPickUp(n) ? 'Incoming check' : String(n.name).trim(),
-        manpower: mp.text, manpower_people: mp.people, est_min: int(n.minutes) || null, needs_sops: [], source_ref: refOf(n),
+        manpower: mp.text, skilled: mp.skilled, helper: mp.helper, est_min: mp.est_min, needs_sops: [], source_ref: refOf(n),
         needs_sections: b.predsOf(n.id).filter(p => b.secOf[p] !== undefined).map(p => b.secOf[p]).sort((x, y) => x - y) });
     }).sort((x, y) => x.section - y.section);
     for (const n of b.numbered) {
@@ -198,7 +221,9 @@ const ENGINE_KICK = (function () {
       parts.push(text + '.');
     }
     for (const s of sections) {
-      if (s.manpower === NEEDED) { vn.push({ vn_id: 'VN-' + String(vno).padStart(4, '0'), no: vno, sop_id: sop.sop_id, step_text: String(s.section), value_needed: 'Manpower of section ' + s.section + ' ' + s.name, unit: 'text', owner: 'Divyal', blocks_release: false, value: null, date_given: null, sign: null }); vno++; }
+      /* build 69: a row for the crew field(s) the box left empty (persons), then for Est min */
+      const who = s.skilled === null && s.helper === null ? 'Skilled and helper' : (s.skilled === null ? 'Skilled' : (s.helper === null ? 'Helper' : null));
+      if (who) { vn.push({ vn_id: 'VN-' + String(vno).padStart(4, '0'), no: vno, sop_id: sop.sop_id, step_text: String(s.section), value_needed: who + ' of section ' + s.section + ' ' + s.name, unit: 'persons', owner: 'Divyal', blocks_release: false, value: null, date_given: null, sign: null }); vno++; }
       if (s.est_min === null) { vn.push({ vn_id: 'VN-' + String(vno).padStart(4, '0'), no: vno, sop_id: sop.sop_id, step_text: String(s.section), value_needed: 'Est min of section ' + s.section + ' ' + s.name, unit: 'min', owner: 'Divyal', blocks_release: false, value: null, date_given: null, sign: null }); vno++; }
     }
     if (!isNew) { for (const f of [['title', 'title'], ['level', 'level'], ['product', 'product'], ['who_does_it', 'who does it'], ['input_from', 'input from'], ['output_to', 'output to']]) { if (!empty(before[f[0]])) { kept.push(f[1]); } } }
@@ -308,6 +333,6 @@ const ENGINE_KICK = (function () {
     return { sop: sop, new_sop: isNew, revision: revision, rh_row: rh, history: hist, report: report };
   }
 
-  return { chartGroups, chartPlan, sopFromChart, sopBlank };
+  return { chartGroups, chartPeople, crewWords, chartPlan, sopFromChart, sopBlank };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_KICK;

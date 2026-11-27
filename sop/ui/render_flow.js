@@ -110,7 +110,8 @@ const RENDER_FLOW = (function () {
     const help = howTo('howto-big');
     /* build 66: another person's copy keeps its line and offers ✎ Add a note (spec/example_notes_list.md part 2) */
     if (v.locked) {
-      return '<div class="flow-bar" id="flow-bar">' + help + '<span class="ok">' + esc(v.lock_text) + '</span> ' +
+      /* build 71: the lock is said on the SOP line, once */
+      return '<div class="flow-bar" id="flow-bar">' + help +
         (v.notes_ok ? '<button id="btn-add-note"' + (ui.mode === 'note' ? ' class="active"' : '') + '>✎ Add a note</button> ' : '') + seg + ' ' + big +
         (v.notes_ok ? '<div class="flow-mode muted" id="flow-mode">' + esc(ui.modeText || '') + '</div><div class="refusal" id="flow-refusal"></div>' : '') + '</div>';
     }
@@ -189,7 +190,7 @@ const RENDER_FLOW = (function () {
     h += '<button id="btn-sec-edit">' + (v.locked ? 'Section fields' : 'Edit section') + '</button> ';
     /* build 40 (example_renumber.md part 8): short names; a section moves by a drag on the sections chart */
     if (!v.locked) { h += '<button id="btn-sec-add-after" title="Add a section after this one">Add section</button> <button id="btn-sec-retire">Delete section</button> <button id="btn-sec-renumber" title="Number the steps of this section in order: ' + esc(s.section) + '.1, ' + esc(s.section) + '.2, …">Renumber</button>'; }
-    h += '</p><div class="muted">Needs: ' + esc(needs) + ' · Est min: ' + num(s.est_min) + ' · People: ' + num(s.manpower_people) + ' · Notes: ' + esc(sv.count.open_here) + ' open</div></div>';
+    h += '</p><div class="muted">Needs: ' + esc(needs) + ' · Est min: ' + num(s.est_min) + ' · Skilled: ' + num(s.skilled) + ' · Helper: ' + num(s.helper) + ' · Notes: ' + esc(sv.count.open_here) + ' open</div></div>';
     /* a section with no steps yet: the way to its first step (example_new_sop.md part 6) */
     const first = !sv.steps.length && !v.locked ? '<p class="pane-empty" id="steps-empty">No steps yet. <button id="btn-step-first">Add the first step</button></p>' : '';
     return h + first + chartC(sv, ui);
@@ -202,7 +203,7 @@ const RENDER_FLOW = (function () {
     const setup = sec.needs_setup === true ? 'Y' : (sec.needs_setup === false ? 'N' : null);
     const wait = sec.wait_after === null || sec.wait_after === undefined ? null : 'after section ' + sec.wait_after + (sec.wait_min === null || sec.wait_min === undefined ? '' : ', ' + sec.wait_min + ' min');
     return '<div class="card sec-details" id="sec-details"><h3>Section ' + esc(sec.section) + ' details</h3>' + R.kvTable([['Needs note', sec.needs_note], ['Ends with', sec.ends_with], ['Restart step', sec.restart_step],
-      ['Max wait', sec.max_wait], ['Manpower', sec.manpower], ['People', sec.manpower_people], ['Est min', sec.est_min], ['Needs sections', list(sec.needs_sections)], ['Needs SOPs', list(sec.needs_sops)],
+      ['Max wait', sec.max_wait], ['Manpower', sec.manpower], ['Skilled', sec.skilled], ['Helper', sec.helper], ['Est min', sec.est_min], ['Needs sections', list(sec.needs_sections)], ['Needs SOPs', list(sec.needs_sops)],
       ['Set-up this shift', setup], ['Wait', wait], ['Any time steps', list(sec.any_time_steps)], ['Chart ref', sec.source_ref]]) +
       '<p class="muted">Click a step to see its details here.</p></div>';
   }

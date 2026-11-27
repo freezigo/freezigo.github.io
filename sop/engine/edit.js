@@ -219,6 +219,6 @@ const ENGINE_EDIT = (function () {
       field: spec.field, old_value: t, new_value: t, reason: 'Text checked: kept as it is' }];
   }
 
-  return { checkStep, editStep, historyRows, draftStep, giveValue, editVnText, keepText, checkGujarati, asText, coerce, derive, checkCtx, LABEL, TEXT_FIELDS };
+  return { checkStep, editStep, historyRows, draftStep, giveValue, editVnText, keepText, checkGujarati, asText, coerce, derive, checkCtx, LABEL, TEXT_FIELDS, FIXED };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_EDIT;

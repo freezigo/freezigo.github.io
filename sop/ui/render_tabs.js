@@ -43,15 +43,14 @@ const RENDER_TABS = (function () {
   function vnLinksText(links) {
     return links.scope === 'Step' ? 'steps ' + esc(links.keys.join(', ')) : (links.scope === 'Section' ? 'sections ' + esc(links.sections.join(', ')) : 'the SOP');
   }
-  /* giveForm(vn, today, editor): Value, Date given, Sign, Reason, Save */
+  /* giveForm(vn, today, editor): Value, then one sign line (build 70, spec/example_job1_70.md part 1: the name at the top and today, not
+     typed), Save; Enter in Value saves, Esc cancels */
   function giveForm(vn, today, editor) {
     return '<div class="give-form"><b>No. ' + esc(vn.no) + '</b> ' + esc(vn.value_needed) + (vn.unit ? ' (' + esc(vn.unit) + ')' : '') +
       '<div class="f"><label for="g-value">Value</label><div class="v"><input id="g-value" size="50" value="' + esc(vn.value || '') + '">' +
       '<div class="note">The value as it will be written into the step. Example: 1282 from the inside floor.</div><div class="refusal" data-for="value"></div></div></div>' +
-      '<div class="f"><label for="g-date">Date given</label><div class="v"><input id="g-date" size="12" value="' + esc(vn.date_given || today) + '">' +
-      '<div class="note">YYYY-MM-DD. Example: ' + esc(today) + '.</div><div class="refusal" data-for="date_given"></div></div></div>' +
-      '<div class="f"><label for="g-sign">Sign</label><div class="v"><input id="g-sign" size="20" value="' + esc(vn.sign || editor) + '">' +
-      '<div class="note">Who gave the value. Example: Divyal.</div><div class="refusal" data-for="sign"></div></div></div>' +
+      '<div class="f"><label></label><div class="v"><span class="sg-line" id="g-sign-line">Signed: ' + esc(ENGINE_MENUS.signLine(editor, today)) + '</span>' +
+      '<div class="note">Enter saves, Esc cancels.</div><div class="refusal" data-for="date_given"></div><div class="refusal" data-for="sign"></div></div></div>' +
       '<div class="f"><label></label><div class="v"><button id="btn-give-save">Save</button> <button id="btn-give-cancel">Cancel</button><div class="refusal" data-for="form"></div></div></div></div>';
   }
   /* givenNote(links, steps): after a value is given, where to change the step by hand */
@@ -66,7 +65,8 @@ const RENDER_TABS = (function () {
   /* the lists can change in the Builder unless the revision is Released or Superseded (build 32, example_new_sop.md part 10); build 50:
      or the name at the top does not change this SOP (view.lock_text: the good version, someone else's copy; example_rights.md part 5) */
   const open = view => !!view.rev && !view.lock_text;
-  const lockLine = view => (view.rev && !open(view) ? '<p class="ok">' + esc(view.lock_text) + '</p>' : '');
+  /* build 71 (rule 6): the lock is said once, on the SOP line; the tabs no longer repeat it */
+  const lockLine = () => '';
   function safetyTab(view) {
     return '<h2>1 Safety and PPE <span class="muted">(read only on the floor)</span></h2>' + lockLine(view) +
       RENDER_LISTS.listGrid('safety_items', [['No.', 'no'], ['Status', 'status'], ['Item', 'item'], ['Who', 'who'], ['Used at', 'used_at'], ['Tag', 'tag']], view.safety_items, open(view));
@@ -154,12 +154,12 @@ const RENDER_TABS = (function () {
         '<div class="f"><label>Prepared by</label><div class="v fixed">' + show(rv.prepared_by) + '</div></div>';
       if (sg) {
         h += '<div class="f"><label>Checked by</label><div class="v">' + signed(rv.checked_by, rv.checked_date) +
-          (sg.checked.can ? '<span class="sg-who" id="sg-check-who">' + esc(sg.checked.name) + '</span> <input id="sg-check-date" size="12" value="' + esc(today) + '"> <button id="btn-sign-checked">Sign as checked</button>' +
-            '<div class="note">You sign with your login name. Date YYYY-MM-DD. Example: ' + esc(today) + '.</div>' : '<span class="muted" id="sg-check-line">' + esc(sg.checked.line) + '</span>') +
+          (sg.checked.can ? '<span class="sg-who" id="sg-check-who">' + esc(ENGINE_MENUS.signLine(sg.checked.name, today)) + '</span> <button id="btn-sign-checked">Sign as checked</button>' +
+            '<div class="note">You sign with your login name and today\'s date.</div>' : '<span class="muted" id="sg-check-line">' + esc(sg.checked.line) + '</span>') +
           '<div class="refusal" data-for="checked"></div></div></div>' +
           '<div class="f"><label>Approved by</label><div class="v">' + signed(rv.approved_by, rv.approved_date) +
-          (sg.approved.can ? '<span class="sg-who" id="sg-appr-who">' + esc(sg.approved.name) + '</span> <input id="sg-appr-date" size="12" value="' + esc(today) + '"> <button id="btn-sign-approved">Sign as approved</button>' +
-            '<div class="note">After the check. A new check clears the approval. Example: ' + esc(today) + '.</div>' : '<span class="muted" id="sg-appr-line">' + esc(sg.approved.line) + '</span>') +
+          (sg.approved.can ? '<span class="sg-who" id="sg-appr-who">' + esc(ENGINE_MENUS.signLine(sg.approved.name, today)) + '</span> <button id="btn-sign-approved">Sign as approved</button>' +
+            '<div class="note">You sign with your login name and today\'s date, after the check. A new check clears the approval.</div>' : '<span class="muted" id="sg-appr-line">' + esc(sg.approved.line) + '</span>') +
           '<div class="refusal" data-for="approved"></div></div></div></div>';
       } else {
         h += '<div class="f"><label for="sg-check-name">Checked by</label><div class="v">' + names('sg-check-name', view.release.signers.checked, rv.checked_date ? rv.checked_by : '') + ' ' +
@@ -203,7 +203,7 @@ const RENDER_TABS = (function () {
   function textsTab(list, lockText) {
     let h = '<h2>Texts to check <span class="muted">' + (list.length ? esc(list.length) + (list.length === 1 ? ' text names' : ' texts name') + ' a step number that changed since it was written' : '') + '</span></h2>';
     if (!list.length) { return h + '<p class="ok" id="tc-none">No text names a step number that changed.</p>'; }
-    if (lockText) { h += '<p class="muted">' + esc(lockText) + '</p>'; }
+    /* build 71: the lock is said on the SOP line */
     else {
       /* build 41 (example_renumber.md part 10): the options, and Apply all suggestions */
       const n = list.filter(m => m.suggested).length;

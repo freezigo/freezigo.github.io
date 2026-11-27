@@ -167,9 +167,16 @@ const APP_ACTIONS = (function () {
     $('give-' + vnId).innerHTML = RENDER_TABS.giveForm(vn, nowIso().slice(0, 10), state.editor);
     $('btn-give-save').onclick = function () { guard('ui saveGive', function () { return saveGive(vnId); }); };
     $('btn-give-cancel').onclick = function () { $('give-' + vnId).innerHTML = ''; };
+    /* build 70 (spec/example_job1_70.md part 1): Enter in Value saves, Esc cancels */
+    $('g-value').onkeydown = function (e) {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('btn-give-save').click(); }
+      if (e.key === 'Escape') { e.preventDefault(); $('btn-give-cancel').click(); }
+    };
+    $('g-value').focus({ preventScroll: true });
   }
+  /* saveGive(vnId): the value, signed by the name at the top with today's date (build 70: one line, not typed) */
   function saveGive(vnId) {
-    const given = { value: $('g-value').value, date_given: $('g-date').value, sign: $('g-sign').value };
+    const given = { value: $('g-value').value, date_given: nowIso().slice(0, 10), sign: state.editor };
     const vn = state.view.vn.rows.find(v => v.vn_id === vnId);
     return change('Give value No. ' + (vn ? vn.no : vnId), ctx => ENGINE.giveValue({ tables: state.tables, vn_id: vnId, given: given, ctx: ctx }), async function (r, ctx) {
       console.log('[engine → ui] giveValue ' + vnId + ': ' + r.new_history.length + ' History rows; links ' + r.links.scope);

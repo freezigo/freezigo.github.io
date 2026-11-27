@@ -9,7 +9,7 @@ const ENGINE_PROMPT = (function () {
 const TYPES_ = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
 const SETS_ = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
 const DR = (typeof ENGINE_DRAFT !== 'undefined') ? ENGINE_DRAFT : require('./draft.js');
-const PROMPT_NAME = 'Freezigo SOP draft prompt v6';
+const PROMPT_NAME = 'Freezigo SOP draft prompt v7';
 const FILE_NAME = PROMPT_NAME + '.md';
 const EXAMPLE_SOP = 'BMC-L1-TANK-01';
 const EXAMPLE_BY = 'AI chat for Divyal Patel';
@@ -60,7 +60,8 @@ const NOTE = {
   'sections.wait_after': ['This section starts at least Wait min minutes after that section ends; that section is in needs_sections.', 10],
   'sections.wait_min': ['The minutes of that wait.', 20],
   'sections.any_time_steps': ['Steps of this section that may be done before the Needs are met.', ['8.1', '8.2']],
-  'sections.manpower_people': ['Number of people.', 2],
+  'sections.skilled': ['Skilled people for the section (welder, fitter, inspector; a chart\'s employee): a whole number, 0 or more. Empty when the source does not give it.', 1],
+  'sections.helper': ['Helpers for the section: a whole number, 0 or more; 0 = no helper. Empty when the source does not give it.', 1],
   'sections.est_min': ['Minutes for the section. Empty when not given.', 45],
   'sections.max_wait': ['Longest wait before the next section: No limit when the item can wait; the time the source gives; [VALUE NEEDED: Divyal] with a values_needed row when the source says the wait matters (water standing in the tank, glue open time) but gives no number.', 'No limit'],
   'sections.restart_step': ['Where to start again when the section stops halfway: the first step not done; inside a timed chain (one weld route, glue coat to press, a test), the start of the chain.', '9.1 (the full test)'],

@@ -111,6 +111,10 @@ table.grid.steps td.move { white-space: nowrap; }
 .copies-list ul { margin: 4px 0 0 18px; padding: 0; }
 .copies-list li { margin: 2px 0; }
 .tabs .quick-copy { margin-left: 8px; }
+/* build 70: Undo my last change in the top bar, after SOP list (the SOP line keeps one line); greyed when there is nothing it can undo
+   (the reason in its title) */
+.line-acts .undo:disabled { opacity: 0.45; cursor: default; }
+.sg-line { font-weight: 600; }
 /* build 40: the Renumber pop-up and the Texts to check tab (spec/example_renumber.md parts 6 and 7) */
 .pop.pop-wide { width: 820px; max-height: 88vh; overflow: auto; }
 .renum-steps { font-size: 15px; margin: 4px 0 10px; }
@@ -411,9 +415,10 @@ tr.field-edit-row > th { color: var(--note-text); }
 
 /* build 52: the view-only page inside the Freezigo app (spec/example_online.md part 6): nothing that changes an SOP shows; the screens
    lock every SOP with the View only line too, and the store refuses every write */
-body.view-only #btn-save-copy, body.view-only #btn-quick-copy, body.view-only #btn-header-edit, body.view-only #btn-sec-edit, body.view-only #btn-sec-add-after, body.view-only #btn-sec-retire, body.view-only #btn-sec-renumber, body.view-only #btn-add-section, body.view-only #btn-step-add, body.view-only #btn-step-insert, body.view-only #btn-step-first, body.view-only #btn-step-sub, body.view-only #btn-step-up, body.view-only #btn-step-down, body.view-only #btn-step-retire, body.view-only #btn-revise, body.view-only #btn-new-rev, body.view-only #btn-release, body.view-only #btn-sign-checked, body.view-only #btn-sign-approved, body.view-only #btn-walk, body.view-only #btn-final-save, body.view-only #btn-copy-promote, body.view-only #btn-copy-delete, body.view-only #btn-club, body.view-only #btn-add-note, body.view-only #btn-add-menu, body.view-only #btn-draw-arrow, body.view-only #btn-remove-arrow, body.view-only #btn-kick-make, body.view-only #btn-blank-make, body.view-only #btn-pick, body.view-only #btn-open, body.view-only #btn-give-save, body.view-only #btn-fixes-ok, body.view-only #btn-pic-use, body.view-only #btn-pic-file-add, body.view-only #btn-copy-compare-save, body.view-only #btn-nf-save, body.view-only #btn-split-now, body.view-only #btn-renum-ok, body.view-only #btn-ip-insert, body.view-only #btn-as-add, body.view-only #btn-sync-later, body.view-only .btn-add, body.view-only .btn-edit, body.view-only .btn-split, body.view-only .btn-move, body.view-only .btn-photo-add, body.view-only .btn-photo-del, body.view-only .btn-pic-add, body.view-only .btn-pic-del, body.view-only .btn-row-edit, body.view-only .btn-row-add, body.view-only .btn-row-remove, body.view-only .btn-note-edit, body.view-only .btn-note-del, body.view-only .list-add, body.view-only .tc-save, body.view-only .btn-give, body.view-only .edit-card, body.view-only .addmenu, body.view-only .add-menu, body.view-only .copy-save { display: none !important; }
+body.view-only #btn-save-copy, body.view-only #btn-quick-copy, body.view-only #btn-header-edit, body.view-only #btn-sec-edit, body.view-only #btn-sec-add-after, body.view-only #btn-sec-retire, body.view-only #btn-sec-renumber, body.view-only #btn-add-section, body.view-only #btn-step-add, body.view-only #btn-step-insert, body.view-only #btn-step-first, body.view-only #btn-step-sub, body.view-only #btn-step-up, body.view-only #btn-step-down, body.view-only #btn-step-retire, body.view-only #btn-revise, body.view-only #btn-new-rev, body.view-only #btn-release, body.view-only #btn-sign-checked, body.view-only #btn-sign-approved, body.view-only #btn-walk, body.view-only #btn-final-save, body.view-only #btn-copy-promote, body.view-only #btn-copy-delete, body.view-only #btn-club, body.view-only #btn-add-note, body.view-only #btn-add-menu, body.view-only #btn-draw-arrow, body.view-only #btn-remove-arrow, body.view-only #btn-kick-make, body.view-only #btn-blank-make, body.view-only #btn-pick, body.view-only #btn-open, body.view-only #btn-give-save, body.view-only #btn-fixes-ok, body.view-only #btn-pic-use, body.view-only #btn-pic-file-add, body.view-only #btn-copy-compare-save, body.view-only #btn-nf-save, body.view-only #btn-split-now, body.view-only #btn-renum-ok, body.view-only #btn-ip-insert, body.view-only #btn-as-add, body.view-only #btn-sync-later, body.view-only #btn-undo, body.view-only .btn-add, body.view-only .btn-edit, body.view-only .btn-split, body.view-only .btn-move, body.view-only .btn-photo-add, body.view-only .btn-photo-del, body.view-only .btn-pic-add, body.view-only .btn-pic-del, body.view-only .btn-row-edit, body.view-only .btn-row-add, body.view-only .btn-row-remove, body.view-only .btn-note-edit, body.view-only .btn-note-del, body.view-only .list-add, body.view-only .tc-save, body.view-only .btn-give, body.view-only .edit-card, body.view-only .addmenu, body.view-only .add-menu, body.view-only .copy-save { display: none !important; }
 #topbar .erp-back { font-weight: 600; text-decoration: none; margin-right: 6px; }
 #topbar .view-tag { background: #fff3cd; color: #6b4e00; border: 1px solid #e6c766; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+#topbar .layout-line { color: #8a4b00; font-size: 12px; font-weight: bold; }   /* build 69: the database has another data layout */
 /* build 56 (spec/example_edit_online.md): the page that edits online; photos and picture files are added online from build 57 */
 #topbar .edit-tag { background: #e3f4e5; color: #1d5b26; border: 1px solid #8cc596; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
 /* build 57: photos and pictures are added online too (the file store); the archive tag of a PC folder after switch day */
@@ -458,3 +463,39 @@ table.stepcmp td.diff-blue { background: rgba(79, 156, 249, 0.16); box-shadow: i
 table.grid td:has(> .st-notes) { background: #ea580c; }
 .st-notes { background: #ea580c; color: #fff; }
 .st-notes-n { font-weight: 600; white-space: nowrap; }
+
+/* build 71 (spec/example_job4_71.md parts 1 to 6): the top bar as where you are; the SOP line said once, "+ details", the read-only bar,
+   the search box and the actions at its right end; the ☰ items; the Header tab in two levels */
+#topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+#topbar .howto { order: 9; float: none; }
+#topbar .crumbs { font-weight: 600; font-size: 14.5px; }
+#topbar .crumbs a { text-decoration: none; }
+#topbar .crumbs a:hover { text-decoration: underline; }
+#topbar .bar-right { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+#topbar .bar-right .build { margin-right: 0; }
+.sop-head { display: flex; align-items: center; gap: 6px 10px; flex: 1 1 100%; min-width: 0; }
+.sop-head h1 { flex: 0 1 auto; min-width: 0; }
+.ro-bar { flex: none; font-size: 12.5px; font-weight: bold; color: var(--amber); border: 1px solid var(--amber); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+.plus { flex: none; font-size: 12.5px; padding: 1px 7px; color: var(--accent); background: transparent; border: 1px dashed var(--line); }
+.plus:hover { border-color: var(--accent); background: transparent; }
+.sop-head .find { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.sop-head .find input { font-size: 13px; width: 15em; }
+#find-out { font-size: 12.5px; white-space: nowrap; max-width: 22em; overflow: hidden; text-overflow: ellipsis; }
+.line-acts { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.line-acts button { font-size: 13px; }
+button.primary { border-color: var(--accent); background: var(--accent-bg); color: #fff; }
+.line-door { color: inherit; text-decoration: underline dotted; }
+.sop-details { flex: 1 1 100%; font-size: 13px; color: var(--muted); padding: 4px 10px; border-left: 2px solid var(--line); margin: 0 0 2px; }
+.sop-details > div { margin: 1px 0; }
+#line-form { flex: 1 1 100%; }
+#line-form:empty { display: none; }
+.sop-line .tabs { flex: 1 1 100%; }
+.tm-sep { border-top: 1px solid var(--line); margin: 4px 2px; }
+.tm-gap { height: 10px; }
+.tm-act { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 4px 8px; font-size: 13.5px; }
+.tm-act:hover { background: var(--accent-bg); }
+.tm-act.danger { color: var(--red); border: 1px solid var(--red); }
+.tm-act.danger:hover { background: rgba(240, 96, 93, 0.15); }
+table.kv.hdr-edit tr[data-field] { cursor: text; }
+.kv tr.row-mark > th, .kv tr.row-mark > td, tr.step-row.row-mark > td, tr.row-mark > td { background: var(--accent-bg); }
+table.kv.hdr-first th, table.kv.hdr-more th { width: 11.5em; }

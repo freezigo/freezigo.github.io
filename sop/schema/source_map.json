@@ -171,7 +171,8 @@
         "wait_after": null,
         "wait_min": null,
         "any_time_steps": null,
-        "manpower_people": null,
+        "skilled": null,
+        "helper": null,
         "source_ref": null
       },
       "build15": {
@@ -199,8 +200,12 @@
           "any_time_steps",
           "list_text"
         ],
-        "Manpower people": [
-          "manpower_people",
+        "Skilled": [
+          "skilled",
+          "int"
+        ],
+        "Helper": [
+          "helper",
           "int"
         ],
         "Needs note": [

@@ -65,8 +65,11 @@ const ENGINE_SECTIONS = (function () {
     }
     const mine = sopSteps.filter(s => s.section === sec.section).map(s => s.step_no);
     for (const st of list(sec.any_time_steps)) { if (mine.indexOf(st) < 0) { out.push(r('any_time_steps', 'Any time step ' + st + ' is not a step of section ' + sec.section + '.')); } }
-    const p = sec.manpower_people;
-    if (p !== null && p !== undefined && !(Number.isInteger(p) && p >= 1)) { out.push(r('manpower_people', 'People must be a whole number of 1 or more.')); }
+    /* contract 1.7 (build 69): Skilled and Helper, whole numbers of 0 or more; empty = not given */
+    for (const [f, word, ex] of [['skilled', 'Skilled', '1'], ['helper', 'Helper', '0']]) {
+      const v = sec[f];
+      if (v !== null && v !== undefined && !(Number.isInteger(v) && v >= 0)) { out.push(r(f, word + ' must be a whole number of 0 or more. Example: ' + ex + '.')); }
+    }
     const m = sec.est_min;
     if (m !== null && m !== undefined && !(isNum(m) && m >= 0)) { out.push(r('est_min', 'Est min must be a number of 0 or more.')); }
     return out;
@@ -271,6 +274,6 @@ const ENGINE_SECTIONS = (function () {
     return out;
   }
 
-  return { coerceSection, checkSection, editSection, arrowChanges, sectionMoveTarget, moveSection, addSection, retireSection, retirePreview, retireStep, sectionMentionsOf };
+  return { coerceSection, checkSection, editSection, arrowChanges, sectionMoveTarget, moveSection, addSection, retireSection, retirePreview, retireStep, sectionMentionsOf, EDITABLE };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE_SECTIONS;

@@ -116,6 +116,8 @@ const STORE = (function () {
   }
 
   /* ---- tables ---- */
+  /* build 69: an older file reads as this contract (the fields a table no longer has left out: engine/online.js asContract) */
+  const asContract = (name, rows) => (typeof ENGINE_ONLINE !== 'undefined' ? ENGINE_ONLINE.asContract(name, rows) : rows);
   function checkShape(name, obj) {
     const file = CONFIG.data_dir + '/' + name + '.json';
     if (!obj || typeof obj !== 'object') { fail('readTable', file + ' is not a JSON object'); }
@@ -130,7 +132,7 @@ const STORE = (function () {
       if (!(name in memory)) { fail('readTable', 'test data has no table "' + name + '"'); }
       const t = memory[name];
       checkShape(name, t);
-      return { rows: JSON.parse(JSON.stringify(t.rows)), saved_at: t.saved_at, saved_by: t.saved_by };
+      return { rows: asContract(name, JSON.parse(JSON.stringify(t.rows))), saved_at: t.saved_at, saved_by: t.saved_by };
     }
     if (mode !== 'folder') { fail('readTable', 'no folder picked yet'); }
     const file = CONFIG.data_dir + '/' + name + '.json';
@@ -145,7 +147,7 @@ const STORE = (function () {
     catch (e) { fail('readTable', file + ' is not valid JSON (' + e.message + ')'); }
     checkShape(name, obj);
     console.log('[store → ui] read ' + file + ': ' + obj.rows.length + ' rows');
-    return { rows: obj.rows, saved_at: obj.saved_at, saved_by: obj.saved_by };
+    return { rows: asContract(name, obj.rows), saved_at: obj.saved_at, saved_by: obj.saved_by };
   }
   async function writeTable(name, rows, savedBy, nowIso) {
     noWrite('writeTable');
