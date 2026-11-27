@@ -19,11 +19,11 @@ const RENDER_KICK = (function () {
     h += '<option value=""' + (k.sop_id ? '' : ' selected') + '>(pick one)</option>';
     for (const s of listed) { h += '<option value="' + esc(s.sop_id) + '"' + (k.sop_id === s.sop_id ? ' selected' : '') + '>' + esc(s.sop_id) + ' · ' + esc(s.status) + ' · ' + esc(String(s.title || '').length > 60 ? String(s.title).slice(0, 60) + '…' : s.title) + '</option>'; }
     h += '</select> <label class="radio"><input type="radio" name="kick-sop" value="new"' + (k.sop_choice === 'new' ? ' checked' : '') + '> New SOP ID</label>';
-    h += note('An SOP on the list with no revision yet (status Listed or On hold), or a new ID', 'BMC-L1-ALUCOIL-01') + ref('sop_id');
+    h += note('An SOP on the list with no revision yet (status Listed or On hold), or a new ID', 'BMC-L2-COILBANK-01') + ref('sop_id');
     if (k.sop_id && k.kept) { h += '<div class="muted">Kept from the list: ' + esc(k.kept) + '</div>'; }
     if (k.sop_choice === 'new') {
       const n = k.new_sop || {};
-      h += '<div class="kick-new"><div class="f"><label for="kn-id">SOP ID</label><div class="v"><input id="kn-id" size="24" value="' + esc(n.sop_id || '') + '">' + note('PRODUCT-LEVEL-NAME-NN, in capitals (small letters are turned into capitals)', 'BMC-L1-ALUCOIL-01') + ref('new_sop_id') + '</div></div>';
+      h += '<div class="kick-new"><div class="f"><label for="kn-id">SOP ID</label><div class="v"><input id="kn-id" size="24" value="' + esc(n.sop_id || '') + '">' + note('PRODUCT-LEVEL-NAME-NN, in capitals (small letters are turned into capitals)', 'BMC-L1-NEWPART-01') + ref('new_sop_id') + '</div></div>';
       h += '<div class="f"><label for="kn-level">Level</label><div class="v"><select id="kn-level"><option value="">(pick)</option>' + levels.map(l => '<option' + (n.level === l ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>' +
         note('L0 incoming, L1 part, L2 sub-assembly, L3 final assembly, L4 test, Site', 'L1') + ref('level') + '</div></div>';
       h += '<div class="f"><label for="kn-product">Product</label><div class="v"><input id="kn-product" size="40" value="' + esc(n.product || '') + '">' + note('Product the SOP belongs to', 'BMC 1000 L cooling unit') + ref('product') + '</div></div>';
@@ -56,10 +56,10 @@ const RENDER_KICK = (function () {
     /* build 61: the prompt from the Builder, for any AI chat */
     let h = '<div class="f"><label>The prompt</label><div class="v"><button id="btn-prompt-copy">Copy the prompt</button> <button id="btn-prompt-save">Save the prompt as a file</button>' +
       '<div class="note">Paste the prompt in a new chat of any AI (Claude, ChatGPT, Gemini) and attach all you have on the SOP: PDFs, a flow chart, drawings, photos, notes. ' +
-      'The chat gives two files: a PDF to read and a .json file for step 1. Example: "Make the draft of BMC-L1-ALUCOIL-01 from the attached files."</div><div id="prompt-done">' + (k.prompt_done ? '<div class="given-note">' + esc(k.prompt_done) + '</div>' : '') + '</div></div></div>';
+      'The chat gives two files: a PDF to read and a .json file for step 1. Example: "Make the draft of BMC-L2-COILBANK-01 from the attached files."</div><div id="prompt-done">' + (k.prompt_done ? '<div class="given-note">' + esc(k.prompt_done) + '</div>' : '') + '</div></div></div>';
     h += '<div class="f"><label>1 Draft file</label><div class="v"><input type="file" id="kick-draft" accept=".json,application/json"> ' +
       (k.draft_name ? '<span class="muted">' + esc(k.draft_name) + '</span>' : '') +
-      note('The .json file the chat made with the prompt, or one saved on a Floor PDF tab. The PDF the same chat made is for reading', 'BMC-L1-ALUCOIL-01 draft.json') + ref('file') + '</div></div>';
+      note('The .json file the chat made with the prompt, or one saved on a Floor PDF tab. The PDF the same chat made is for reading', 'BMC-L2-COILBANK-01 draft.json') + ref('file') + '</div></div>';
     const rd = k.read;
     if (!rd) { return h; }
     h += '<div class="f"><label>2 What it holds</label><div class="v">';

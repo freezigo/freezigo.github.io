@@ -82,7 +82,7 @@ const ENGINE_RELEASE = (function () {
       else { missing.push(ok + ' missing'); }
     }
     const photoSteps = steps.some(s => Array.isArray(s.photo_ref) && s.photo_ref.length);
-    items.push(item(6, missing.length === 0, photoSteps ? (missing.length ? uniq(missing).length + ' missing' : uniq(found).length + ' OK photos found') : 'No photo checks', missing.length ? uniq(missing) : uniq(found)));
+    items.push(item(6, missing.length === 0, photoSteps ? (missing.length ? uniq(missing).length + ' missing' : uniq(found).length + (uniq(found).length === 1 ? ' OK photo found' : ' OK photos found')) : 'No photo checks', missing.length ? uniq(missing) : uniq(found)));
 
     // 7 the record sheet can show every Reading and Hold step
     const bad = [];

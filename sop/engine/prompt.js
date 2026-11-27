@@ -9,7 +9,7 @@ const ENGINE_PROMPT = (function () {
 const TYPES_ = (typeof TYPES !== 'undefined') ? TYPES : require('../schema/types.js');
 const SETS_ = (typeof SETS !== 'undefined') ? SETS : require('../schema/sets.js');
 const DR = (typeof ENGINE_DRAFT !== 'undefined') ? ENGINE_DRAFT : require('./draft.js');
-const PROMPT_NAME = 'Freezigo SOP draft prompt v5';
+const PROMPT_NAME = 'Freezigo SOP draft prompt v6';
 const FILE_NAME = PROMPT_NAME + '.md';
 const EXAMPLE_SOP = 'BMC-L1-TANK-01';
 const EXAMPLE_BY = 'AI chat for Divyal Patel';
@@ -46,7 +46,7 @@ const MUST = {
 };
 /* notes and examples for the chat where the contract's own speak of the Builder (the Rev 02 import, the Flow tab) */
 const NOTE = {
-  'sop.sop_id': ['SOP ID in capitals. Main SOP: PRODUCT-LEVEL-NAME-NN. Process SOP: its code. An SOP already in the SOP Builder: its own ID.', 'BMC-L1-ALUCOIL-01'],
+  'sop.sop_id': ['SOP ID in capitals. Main SOP: PRODUCT-LEVEL-NAME-NN. Process SOP: its code. An SOP already in the SOP Builder: its own ID.', 'BMC-L2-COILBANK-01'],
   'sop.sop_type': ['Main or Process (part 4, Two SOP types). Empty: Main.', 'Main'],
   'sop.output_serial_tracked': ['true when every piece this SOP makes gets its own serial number; false for a Process SOP.', true],
   'revision.prepared_by': ['Who wrote the SOP (usually Divyal Patel). Empty: the person who brings the file into the Builder.', 'Divyal Patel'],
@@ -144,7 +144,7 @@ Made by the SOP Builder (build ${BUILD}) on ${today} from the freezigo-sop skill
 
 1. Open a new chat in any AI that can read files and make files (Claude, ChatGPT, Gemini; any account).
 2. Paste this prompt (SOP Builder: New SOP, Start from: A draft file, Copy the prompt), or attach it as a file. Attach everything you have on the SOP: PDFs, Word files, a flow chart, drawings, photos, notes.
-3. Write one line. Example: "Make the draft of BMC-L1-ALUCOIL-01 from the attached PDF."
+3. Write one line. Example: "Make the draft of BMC-L2-COILBANK-01 from the attached PDF."
 4. Answer the chat's questions.
 5. The chat gives two files: \`<SOP ID> draft.pdf\` to read and \`<SOP ID> draft.json\` for the SOP Builder.
 6. Read the PDF. When it is right, open the SOP Builder: SOP list, New SOP, Start from: A draft file, pick the .json file.
@@ -162,7 +162,7 @@ Make the data file first, then the PDF from the data file, so both say the same.
 
 Before you start, ask in one message, in simple words, numbered, with an example for each question. Ask only what the source does not say:
 
-1. The SOP ID. Example: BMC-L1-ALUCOIL-01. An SOP that is already in the SOP Builder keeps its own ID: the Builder brings the file in as a copy and shows every difference.
+1. The SOP ID. Example: BMC-L2-COILBANK-01. An SOP that is already in the SOP Builder keeps its own ID: the Builder brings the file in as a copy and shows every difference.
 2. For a new SOP: the level, the product and the title. Example: L1; BMC 1000 L cooling unit; Single aluminium coil.
 3. Who prepared the SOP. Example: Divyal Patel.
 4. Outline first, or the files straight away? Example: outline first. With "outline first", show the sections and the step list in the chat and wait for a yes.
