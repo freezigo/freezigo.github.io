@@ -76,6 +76,10 @@ const ENGINE_UNDO = (function () {
     if (other) { return kind(other.what); }
     const main = group.filter((h, i) => kinds[i].main);
     if (!main.length) { return kind('the header or a sign-off'); }
+    /* build 72 (spec/example_fix_72.md part 3): rows with this time and this reason (not empty) on another SOP too were written into
+       several SOPs at once, which only a data step does (the ERP's data_69_70.sql into the main SOP and its copies, 28 Nov) */
+    const others = empty(last.reason) ? [] : unique((tables.history || []).filter(h => h.at === last.at && h.reason === last.reason && h.sop_id !== sopId).map(h => h.sop_id));
+    if (others.length) { return no('Your last change here (' + when + ') was written into ' + (others.length + 1) + ' SOPs at once, by a data step: Undo works for a change made on this page.'); }
     const tbls = unique(main.map(h => h.table)), ids = unique(main.map(h => h.row_id));
     if (tbls.length > 1) { return kind('steps and sections together'); }
     if (ids.length > 1) { return kind(tbls[0] === 'steps' ? 'more than one step' : 'more than one section'); }

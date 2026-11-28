@@ -474,17 +474,28 @@ const ENGINE_SYNC_MAIN = (function () {
       summary: SY.summaryOf(items.map(i => i.where + ' · ' + i.what)) };
   }
 
+  /* build 72 (spec/example_fix_72.md part 2): settled(t, c, ch) → true when every item of a waiting main change is Same already (the
+     copy has the main's words already, as after a data step that wrote the same values into the main SOP and the copy): such a change
+     is not counted or listed, and nothing is written for it; once the copy takes other words for a field it waits again, as Pick. A
+     change whose items cannot be worked out stays counted and listed, as before build 72 */
+  function settled(t, c, ch) {
+    let items;
+    try { items = itemsOf(t, c, ch, SY.opsOf(ch.rows)); } catch (e) { return false; }
+    return items.length > 0 && items.every(i => i.state === 'same');
+  }
+  const waitingOf = (t, c) => SY.pendingChanges(t.history, c.good.sop_id, c.cp.sop_id).filter(ch => !settled(t, c, ch));
   /* copyChanges({ tables, sop_id }) → { copy_id, copy_name, main_id, saved_hist, changes: [plan] } (the list on the copy) */
   function copyChanges(input) {
     need(input, ['tables', 'sop_id'], 'copyChanges');
     const t = input.tables, c = familyOf(t, input.sop_id, 'copyChanges');
-    const pend = SY.pendingChanges(t.history, c.good.sop_id, c.cp.sop_id);
+    const pend = waitingOf(t, c);
     return { copy_id: c.cp.sop_id, copy_name: c.name, main_id: c.good.sop_id, saved_hist: SY.savedAt(t.history, c.cp.sop_id), changes: pend.map(ch => planOf(t, c, ch)) };
   }
-  /* pendingCount(tables, copyId) → how many main changes wait for the copy (the SOP line and the SOP list) */
+  /* pendingCount(tables, copyId) → how many main changes wait for the copy (the SOP line and the SOP list); build 72: not the ones the
+     copy has already */
   function pendingCount(tables, copyId) {
     const cp = SEL.sopOf(tables, copyId);
-    return CP.isCopy(cp) ? SY.pendingChanges(tables.history, cp.copy_of, copyId).length : 0;
+    return CP.isCopy(cp) && cp.current_rev ? waitingOf(tables, familyOf(tables, copyId, 'pendingCount')).length : 0;
   }
   /* changeAfterSave({ tables, sop_id, change_id }) → [{ copy_id, copy_name, plan }]: the copies of the main SOP that the save is offered to */
   function changeAfterSave(input) {
@@ -494,7 +505,7 @@ const ENGINE_SYNC_MAIN = (function () {
     for (const x of CP.copiesOf(t, input.sop_id)) {
       const c = familyOf(t, x.sop_id, 'changeAfterSave');
       if (c.good.sop_id !== input.sop_id) { continue; }
-      const ch = SY.pendingChanges(t.history, c.good.sop_id, c.cp.sop_id).find(g => g.change_id === input.change_id);
+      const ch = waitingOf(t, c).find(g => g.change_id === input.change_id);
       if (ch) { out.push({ copy_id: c.cp.sop_id, copy_name: c.name, plan: planOf(t, c, ch) }); }
     }
     return out;

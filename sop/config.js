@@ -2,7 +2,7 @@
    written into code elsewhere. Classic script (global CONFIG). */
 const CONFIG = {
   app_name: 'SOP Builder',
-  builder_build: 71,           // raise by one on every delivery
+  builder_build: 72,           // raise by one on every delivery
   floor_build: 0,              // Floor App, from S3
   contract: '1.7',
   contract_reads: ['1.3', '1.4', '1.5', '1.6', '1.7'], // an older file reads as 1.7 (the new fields empty, manpower_people left out: TYPES.removed); every write says 1.7

@@ -108,18 +108,20 @@ const RENDER_FLOW = (function () {
     const big = '<button id="btn-big"' + (ui.big ? ' class="active"' : '') + '>' + (ui.big ? 'Exit big view' : '⛶ Big view') + '</button>';
     const seg = '<span class="seg" id="boxes-switch">Boxes: <button id="btn-boxes-short"' + (v.boxes === 'short' ? ' class="on"' : '') + '>Short</button><button id="btn-boxes-full"' + (v.boxes === 'full' ? ' class="on"' : '') + '>Full</button></span>';
     const help = howTo('howto-big');
+    /* build 72 (spec/example_fix_72.md part 4, page review rule 7.8): Boxes and Big view at the right end, the same place on every SOP */
+    const view = '<span class="bar-view" id="bar-view">' + seg + ' ' + big + '</span>';
     /* build 66: another person's copy keeps its line and offers ✎ Add a note (spec/example_notes_list.md part 2) */
     if (v.locked) {
       /* build 71: the lock is said on the SOP line, once */
       return '<div class="flow-bar" id="flow-bar">' + help +
-        (v.notes_ok ? '<button id="btn-add-note"' + (ui.mode === 'note' ? ' class="active"' : '') + '>✎ Add a note</button> ' : '') + seg + ' ' + big +
+        (v.notes_ok ? '<button id="btn-add-note"' + (ui.mode === 'note' ? ' class="active"' : '') + '>✎ Add a note</button> ' : '') + view +
         (v.notes_ok ? '<div class="flow-mode muted" id="flow-mode">' + esc(ui.modeText || '') + '</div><div class="refusal" id="flow-refusal"></div>' : '') + '</div>';
     }
     /* the ＋ Add menu holds the three old buttons (part 17.4) */
     const add = '<span class="addmenu"><button id="btn-add-menu" aria-haspopup="true">＋ Add ▾</button><div class="ctx-menu add-menu" id="add-menu" hidden>' +
       '<button class="ctx-item" id="btn-add-section">Add a section at the end</button><button class="ctx-item" id="btn-draw-arrow">Draw a Needs arrow</button>' +
       '<button class="ctx-item" id="btn-add-note">Add a note</button></div></span>';
-    return '<div class="flow-bar" id="flow-bar">' + help + add + ' ' + (ui.selectedArrow ? '<button id="btn-remove-arrow">Remove this arrow</button> ' : '') + seg + ' ' + big +
+    return '<div class="flow-bar" id="flow-bar">' + help + add + ' ' + (ui.selectedArrow ? '<button id="btn-remove-arrow">Remove this arrow</button> ' : '') + view +
       '<div class="flow-mode muted" id="flow-mode">' + esc(ui.modeText || '') + '</div><div class="refusal" id="flow-refusal"></div></div>';
   }
   /* tiles(v, counts): the line of number tiles (part 16.3); counts = { vn_open, notes_open, release_fail, release_label } from the SOP view;

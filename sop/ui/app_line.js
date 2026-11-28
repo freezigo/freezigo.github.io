@@ -1,20 +1,23 @@
 /* SOP Builder: the SOP line of build 71 (spec/example_job4_71.md parts 1 to 6): "+ details", the release door, Compare, Edit in my
    copy and Back to main SOP at the same tab, section, box and step, the search box, the ☰ items Another copy and Delete this copy,
    and the Header tab's "+ n more fields", copies door and double-click. The engine (ENGINE_LINE) gives the words, the copy to open and
-   the steps found; this file wires the buttons and opens the screens. What a person opened last ("+ details", "+ more fields") is kept
-   in this browser (plan rule 1); the page works without storage. Classic script (global APP_LINE); loaded after ui/app.js,
-   ui/app_flow.js, ui/app_lists.js and ui/app_copies.js. */
+   the steps found; this file wires the buttons and opens the screens. What a person opened last ("+ more fields") is kept in this
+   browser (plan rule 1); the page works without storage. Build 72 (spec/example_fix_72.md part 1): "+ details" starts closed on every
+   visit and keeps its state only while the page is open. Classic script (global APP_LINE); loaded after ui/app.js, ui/app_flow.js,
+   ui/app_lists.js and ui/app_copies.js. */
 const APP_LINE = (function () {
   const $ = APP.el, guard = APP.guard, state = APP.state;
-  const KEYS = { details: 'sopBuilder.line.details', hdr: 'sopBuilder.header.more' };
-  const kept = k => { try { return window.localStorage.getItem(KEYS[k]) === '1'; } catch (e) { return false; } };
-  const keep = (k, on) => { try { window.localStorage.setItem(KEYS[k], on ? '1' : '0'); } catch (e) { /* private window: it lasts this visit */ } };
+  const KEYS = { hdr: 'sopBuilder.header.more' };
+  const visit = { details: false };
+  try { window.localStorage.removeItem('sopBuilder.line.details'); } catch (e) { /* build 71 kept it in the browser: no longer read */ }
+  const kept = k => { if (k in visit) { return visit[k]; } try { return window.localStorage.getItem(KEYS[k]) === '1'; } catch (e) { return false; } };
+  const keep = (k, on) => { if (k in visit) { visit[k] = !!on; return; } try { window.localStorage.setItem(KEYS[k], on ? '1' : '0'); } catch (e) { /* private window: it lasts this visit */ } };
   const log = what => console.log('[ui] ' + what);
   async function ctxOf() {
     return { who: state.editor, now: APP.nowIso(), next_hist_id: await STORE.nextId('history', 'hist_id'), next_note_id: await STORE.nextId('chart_notes', 'note_id'), reason: '' };
   }
   /* toggle(btn, box, k): a "+" button that opens and closes box in place ("+ details" open reads "− details", "1 copy ▸" reads "1 copy ▾");
-     k = the key kept in this browser */
+     k = what is kept ("details" while the page is open, "hdr" in this browser) */
   function toggle(btn, box, k) {
     if (!btn || !box) { return; }
     btn.onclick = function () {

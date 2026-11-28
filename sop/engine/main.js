@@ -22,8 +22,13 @@ const ENGINE = (function () {
   const CP = (typeof ENGINE_COPIES !== 'undefined') ? ENGINE_COPIES : require('./copies.js');
   const SY = (typeof ENGINE_SYNC !== 'undefined') ? ENGINE_SYNC : require('./sync.js');
   const RT = (typeof ENGINE_RIGHTS !== 'undefined') ? ENGINE_RIGHTS : require('./rights.js');
-  /* build 45: how many main changes wait for a copy (example_copy_sync.md part 5.2); 0 for a good version */
-  const waiting = (t, sop) => (CP.isCopy(sop) ? SY.pendingChanges(t.history, sop.copy_of, sop.sop_id).length : 0);
+  /* build 45: how many main changes wait for a copy (example_copy_sync.md part 5.2); 0 for a good version. Build 72: through
+     engine/main_sync.js pendingCount (not the ones the copy has already); looked up when called, as main_sync.js needs this file */
+  const waiting = function (t, sop) {
+    if (!CP.isCopy(sop)) { return 0; }
+    const MS = (typeof ENGINE_SYNC_MAIN !== 'undefined') ? ENGINE_SYNC_MAIN : require('./main_sync.js');
+    return MS.pendingCount(t, sop.sop_id);
+  };
   const KINDS = ['step', 'sub'];
   /* a copy (build 39, spec/example_copy.md part 6): never signed, released or walked; no new revision; Values Needed stay the good version's
      (build 64: but the rows of the copy's draft file stay with the copy until Make this the good version) */

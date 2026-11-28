@@ -499,3 +499,7 @@ button.primary { border-color: var(--accent); background: var(--accent-bg); colo
 table.kv.hdr-edit tr[data-field] { cursor: text; }
 .kv tr.row-mark > th, .kv tr.row-mark > td, tr.step-row.row-mark > td, tr.row-mark > td { background: var(--accent-bg); }
 table.kv.hdr-first th, table.kv.hdr-more th { width: 11.5em; }
+/* build 72 (spec/example_fix_72.md part 4, page review rule 7.8): the Flow toolbar's Boxes and Big view at its right end on every SOP;
+   ＋ Add (or ✎ Add a note) on the left; in Big view "ⓘ How to read" stays the last at the right */
+.flow-bar { display: flow-root; }
+.flow-bar .bar-view { float: right; white-space: nowrap; }
